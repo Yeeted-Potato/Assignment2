@@ -30,17 +30,11 @@ class OrderCreate(BaseModel):
 class OrderStatusUpdate(BaseModel):
     status: str
 
-#@app.get("/")
-#def root():
-#    return {"message": "Hello, World!"}
 
 @app.get("/health")
 def health():
     return {"status": "healthy"}
 
-#@app.get("/customers/{customer_id}")
-#def get_customer(customer_id: int):
-#    return {"You asked for customer": customer_id}
 
 #create a path to get a specific customer by id, find that customer in the database and return their info
 @app.get("/customers/{customer_id}")
