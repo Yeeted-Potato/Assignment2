@@ -36,7 +36,7 @@ def health():
     return {"status": "healthy"}
 
 
-#create a path to get a specific customer by id, find that customer in the database and return their info
+#create a path to get a specific customer by id, find that customer in the database and return their information
 @app.get("/customers/{customer_id}")
 def get_customer(customer_id: int, db: Session = Depends(get_db)):
     customer = db.query(models.Customer).filter(models.Customer.id == customer_id).first()
