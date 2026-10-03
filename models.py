@@ -10,6 +10,14 @@ class Customer(Base):
     name = Column(String, nullable=False)
     email = Column(String, nullable=False, unique=True)
 
+#create class with table name staff and three columns for database
+class Staff(Base):
+    __tablename__ = "staff"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False)
+    email = Column(String, nullable=False, unique=True)
+
 #create class order with columns and foreign key to customer table
 class Order(Base):
     __tablename__ = "orders"
