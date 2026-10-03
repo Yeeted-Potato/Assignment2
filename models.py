@@ -42,6 +42,10 @@ class Order(Base):
     product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
     quantity = Column(Integer, nullable=False)
     status = Column(String, nullable=False, default="pending")
+    #delivery location from the phone, or a typed address if location is not available
+    delivery_address = Column(String, nullable=True)
+    latitude = Column(Float, nullable=True)
+    longitude = Column(Float, nullable=True)
 
     __table_args__ = (
         CheckConstraint("quantity > 0", name="quantity_positive"),
