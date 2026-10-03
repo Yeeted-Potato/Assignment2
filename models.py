@@ -33,13 +33,17 @@ class Product(Base):
         CheckConstraint("stock >= 0", name="stock_not_negative"),
     )
     
-#create class order with columns and foreign key to customer table
+#create class order with columns and foreign keys to customer and product tables
 class Order(Base):
     __tablename__ = "orders"
-    
+
     id = Column(Integer, primary_key=True, index=True)
     customer_id = Column(Integer, ForeignKey("customers.id"), nullable=False)
-    product = Column(String, nullable=False)
+    product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
     quantity = Column(Integer, nullable=False)
     status = Column(String, nullable=False, default="pending")
+
+    __table_args__ = (
+        CheckConstraint("quantity > 0", name="quantity_positive"),
+    )
     
