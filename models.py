@@ -1,7 +1,7 @@
-#get three tools from the sqlalchemy library
-from sqlalchemy import Column, Integer, String, Float, ForeignKey, CheckConstraint, Boolean
-from database import Base
+#get the tools from the sqlalchemy library
+from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, ForeignKey, CheckConstraint
 from sqlalchemy.sql import func
+from database import Base
 
 #create class with table name customers and three columns for database
 class Customer(Base):
