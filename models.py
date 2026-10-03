@@ -1,5 +1,5 @@
 #get three tools from the sqlalchemy library
-from sqlalchemy import Column, Integer, String, Float, ForeignKey, CheckConstraint
+from sqlalchemy import Column, Integer, String, Float, ForeignKey, CheckConstraint, Boolean
 from database import Base
 from sqlalchemy.sql import func
 
@@ -63,3 +63,15 @@ class OrderStatusHistory(Base):
     changed_by_staff_id = Column(Integer, ForeignKey("staff.id"), nullable=True)
     changed_at = Column(DateTime, server_default=func.now())
     
+#create class for notifications the broker consumer saves for a customer
+#event_id is unique so the same event can only be saved once
+class Notification(Base):
+    __tablename__ = "notifications"
+
+    id = Column(Integer, primary_key=True, index=True)
+    event_id = Column(String, nullable=False, unique=True)
+    customer_id = Column(Integer, ForeignKey("customers.id"), nullable=False)
+    order_id = Column(Integer, ForeignKey("orders.id"), nullable=False)
+    message = Column(String, nullable=False)
+    is_read = Column(Boolean, nullable=False, default=False)
+    created_at = Column(DateTime, server_default=func.now())
