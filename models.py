@@ -1,6 +1,7 @@
 #get three tools from the sqlalchemy library
 from sqlalchemy import Column, Integer, String, Float, ForeignKey, CheckConstraint
 from database import Base
+from sqlalchemy.sql import func
 
 #create class with table name customers and three columns for database
 class Customer(Base):
@@ -50,4 +51,15 @@ class Order(Base):
     __table_args__ = (
         CheckConstraint("quantity > 0", name="quantity_positive"),
     )
+    
+#create class to record every status change of an order and who made it
+class OrderStatusHistory(Base):
+    __tablename__ = "order_status_history"
+
+    id = Column(Integer, primary_key=True, index=True)
+    order_id = Column(Integer, ForeignKey("orders.id"), nullable=False)
+    old_status = Column(String, nullable=True)
+    new_status = Column(String, nullable=False)
+    changed_by_staff_id = Column(Integer, ForeignKey("staff.id"), nullable=True)
+    changed_at = Column(DateTime, server_default=func.now())
     
