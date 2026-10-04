@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from database import Base, engine, get_db
 from sqlalchemy.orm import Session
@@ -138,5 +139,43 @@ def update_order_status(order_id: int, update: OrderStatusUpdate, db: Session = 
     db.refresh(order)
     return order
 
+#create a path to get all products from the database
+@app.get("/products")
+def get_products(db: Session = Depends(get_db)):
+    products = db.query(models.Product).all()
+    return products
+
+class CustomerLogin(BaseModel):
+    name: str
+    email: str
+
+
+@app.post("/customer-login")
+def customer_login(customer: CustomerLogin, db: Session = Depends(get_db)):
+    existing = db.query(models.Customer).filter(
+        models.Customer.name == customer.name,
+        models.Customer.email == customer.email
+    ).first()
+
+    if not existing:
+        raise HTTPException(status_code=401, detail="Customer not found")
+
+    return {
+        "id": existing.id,
+        "name": existing.name,
+        "email": existing.email
+    }
+
 #serve files from the static folder
-app.mount("/", StaticFiles(directory="static", html=True), name="static")
+#app.mount("/", StaticFiles(directory="static", html=True), name="static")
+
+#serve files from the static folder
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+@app.get("/")
+def customer_home():
+    return FileResponse("static/customer-view.html")
+
+@app.get("/staff")
+def staff_home():
+    return FileResponse("static/index.html")

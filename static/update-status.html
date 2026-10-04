@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Customer Orders - Update Status</title>
     <style>
-        /* style links to look like buttons */
         .nav-button {
             display: inline-block;
             padding: 12px 20px;
@@ -16,42 +15,193 @@
             border-radius: 6px;
             font-family: sans-serif;
         }
+
         .nav-button:hover {
             background-color: #1d4ed8;
         }
+
+        .orders-container {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin-top: 30px;
+        }
+
+        .status-column {
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            padding: 15px;
+            min-height: 200px;
+            background-color: #f5f5f5;
+        }
+
+        .status-column h3 {
+            text-align: center;
+            margin-top: 0;
+        }
+
+        .order {
+            background-color: white;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+
+        .order strong {
+            display: inline-block;
+        }
     </style>
 </head>
-<body>
-    <h1>Customer Orders System</h1>
 
-    <!-- navigation links styled as buttons, in a row -->
+<body>
+    <h1>Customer Orders System (STAFF)</h1>
+
+    <!-- Navigation -->
     <div>
-        <a href="create-customer.html" class="nav-button">Create Customer</a>
-        <a href="load-customers.html" class="nav-button">View Customers</a>
-        <a href="create-order.html" class="nav-button">Create Order</a>
-        <a href="view-orders.html" class="nav-button">View Orders</a>
-        <a href="update-status.html" class="nav-button">Update Status</a>
+        <a href="/static/create-customer.html" class="nav-button">Create Customer</a>
+        <a href="/static/load-customers.html" class="nav-button">View Customers</a>
+        <a href="/static/view-orders.html" class="nav-button">View Orders</a>
+        <a href="/static/update-status.html" class="nav-button">Update Status</a>
     </div>
 
     <h2>Update an order's status</h2>
+
     <h4>Order Statuses</h4>
-    <li>pending > paid > shipped >delivered</li>
-    <li></li>
-    
+    <li>pending > paid > shipped > delivered</li>
+
+    <br>
+
     <input id="orderId" placeholder="Order ID">
     <input id="newStatus" placeholder="New status">
     <button onclick="updateStatus()">Update status</button>
+
     <pre id="output"></pre>
 
+    <h2>Current Orders</h2>
+
+    <div class="orders-container">
+
+        <div class="status-column">
+            <h3>pending</h3>
+            <div id="pendingOrders"></div>
+        </div>
+
+        <div class="status-column">
+            <h3>paid</h3>
+            <div id="paidOrders"></div>
+        </div>
+
+        <div class="status-column">
+            <h3>shipped</h3>
+            <div id="shippedOrders"></div>
+        </div>
+
+        <div class="status-column">
+            <h3>delivered</h3>
+            <div id="deliveredOrders"></div>
+        </div>
+
+    </div>
+
     <script>
+        async function loadOrders() {
+            try {
+                // Get all customers
+                const customersResponse = await fetch("/customers");
+                const customers = await customersResponse.json();
+
+                // Get all products
+                const productsResponse = await fetch("/products");
+                const products = await productsResponse.json();
+
+                // Clear existing orders
+                document.getElementById("pendingOrders").innerHTML = "";
+                document.getElementById("paidOrders").innerHTML = "";
+                document.getElementById("shippedOrders").innerHTML = "";
+                document.getElementById("deliveredOrders").innerHTML = "";
+
+                let allOrders = [];
+
+                // Get orders for each customer
+                for (const customer of customers) {
+                    const ordersResponse = await fetch(
+                        "/customers/" + customer.id + "/orders"
+                    );
+
+                    const orders = await ordersResponse.json();
+
+                    for (const order of orders) {
+                        allOrders.push(order);
+                    }
+                }
+
+                for (const order of allOrders) {
+                    const product = products.find(
+                        p => p.id === order.product_id
+                    );
+
+                    const productName = product
+                        ? product.name
+                        : "Unknown product";
+
+                    const customer = customers.find(
+                        c => c.id === order.customer_id
+                    );
+
+                    const customerName = customer
+                        ? customer.name
+                        : "Unknown customer";
+
+                    const orderDiv = document.createElement("div");
+                    orderDiv.className = "order";
+
+                    orderDiv.innerHTML =
+                        "<strong>Order ID:</strong> " + order.id + "<br>" +
+                        "<strong>Product:</strong> " + productName +
+                        " (ID: " + order.product_id + ")<br>" +
+                        "<strong>Quantity:</strong> " + order.quantity + "<br>" +
+                        "<strong>Customer:</strong> " + customerName +
+                        " (ID: " + order.customer_id + ")<br>" +
+                        "<strong>Status:</strong> " + order.status;
+
+                    // Put the order into the correct status column
+                    if (order.status === "pending") {
+                        document.getElementById("pendingOrders")
+                            .appendChild(orderDiv);
+
+                    } else if (order.status === "paid") {
+                        document.getElementById("paidOrders")
+                            .appendChild(orderDiv);
+
+                    } else if (order.status === "shipped") {
+                        document.getElementById("shippedOrders")
+                            .appendChild(orderDiv);
+
+                    } else if (order.status === "delivered") {
+                        document.getElementById("deliveredOrders")
+                            .appendChild(orderDiv);
+                    }
+                }
+
+            } catch (error) {
+                document.getElementById("output").textContent =
+                    "Error loading orders.";
+            }
+        }
+
         async function updateStatus() {
             const orderId = document.getElementById("orderId").value;
             const newStatus = document.getElementById("newStatus").value;
 
             const response = await fetch("/orders/" + orderId, {
                 method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ status: newStatus })
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    status: newStatus
+                })
             });
 
             const data = await response.json();
@@ -59,11 +209,18 @@
             if (response.ok) {
                 document.getElementById("output").textContent =
                     "Order " + data.id + " updated to: " + data.status;
+
+                // Reload orders so the order moves to the new column
+                loadOrders();
             } else {
                 document.getElementById("output").textContent =
                     "Error: " + JSON.stringify(data.detail);
             }
-}
+        }
+
+        // Load orders when page opens
+        loadOrders();
     </script>
+
 </body>
 </html>
