@@ -165,7 +165,28 @@ def customer_login(customer: CustomerLogin, db: Session = Depends(get_db)):
         "name": existing.name,
         "email": existing.email
     }
+class StaffLogin(BaseModel):
+    email: str
+    password: str
 
+
+@app.post("/staff-login")
+def staff_login(staff: StaffLogin, db: Session = Depends(get_db)):
+    if staff.password != "dummypw":
+        raise HTTPException(status_code=401, detail="Invalid password")
+
+    existing = db.query(models.Staff).filter(
+        models.Staff.email == staff.email
+    ).first()
+
+    if not existing:
+        raise HTTPException(status_code=401, detail="Staff email not found")
+
+    return {
+        "id": existing.id,
+        "name": existing.name,
+        "email": existing.email
+    }
 #serve files from the static folder
 #app.mount("/", StaticFiles(directory="static", html=True), name="static")
 

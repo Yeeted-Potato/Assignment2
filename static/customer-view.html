@@ -3,512 +3,435 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-    <title>Customer Orders - Home</title>
+    <title>Customer Orders System</title>
 
     <style>
         body {
-            font-family: sans-serif;
-            margin: 40px;
+            font-family: Arial, sans-serif;
+            margin: 0;
+            background-color: #f4f4f4;
         }
 
-        /* Header */
-        .header {
+        header {
+            background-color: #333;
+            color: white;
+            padding: 15px 20px;
             display: flex;
+            justify-content: space-between;
             align-items: center;
-            gap: 40px;
         }
 
-        .header h1 {
+        header h1 {
             margin: 0;
         }
 
         .staff-button {
-            display: inline-block;
-            padding: 10px 18px;
-            background-color: #555;
+            background-color: #666;
             color: white;
-            text-decoration: none;
             border: none;
+            padding: 10px 18px;
             border-radius: 6px;
-            font-family: sans-serif;
-            font-size: 16px;
             cursor: pointer;
         }
 
         .staff-button:hover {
-            background-color: #333;
+            background-color: #888;
         }
 
-        .nav-button {
-            display: inline-block;
-            padding: 12px 20px;
-            margin-right: 10px;
+        .container {
+            max-width: 900px;
+            margin: 30px auto;
+            padding: 20px;
+        }
+
+        .section {
+            background-color: white;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        input, select {
+            padding: 10px;
+            margin: 5px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+
+        button {
+            padding: 10px 15px;
+            margin: 5px;
+            border: none;
+            border-radius: 5px;
             background-color: #2563eb;
             color: white;
-            text-decoration: none;
-            border: none;
-            border-radius: 6px;
-            font-family: sans-serif;
-            font-size: 16px;
             cursor: pointer;
         }
 
-        .nav-button:hover {
+        button:hover {
             background-color: #1d4ed8;
         }
 
-        /* Login */
-        #login {
-            width: 350px;
-            padding: 20px;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-        }
-
-        #login h2 {
-            margin-top: 0;
-        }
-
-        .form-group {
-            margin-bottom: 15px;
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 5px;
-        }
-
-        .form-group input,
-        .form-group select {
-            width: 100%;
-            padding: 8px;
-            box-sizing: border-box;
-        }
-
-        .submit-button {
-            padding: 10px 18px;
-            background-color: #16a34a;
-            color: white;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-        }
-
-        .submit-button:hover {
-            background-color: #15803d;
-        }
-
-        #login-output {
-            margin-top: 15px;
-        }
-
-        /* Customer content */
-        #customer-content {
-            display: none;
-        }
-
-        #customer-info {
-            margin-top: 20px;
-        }
-
-        /* Create order form */
-        #order-form {
-            display: none;
-            margin-top: 30px;
-            padding: 20px;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-            width: 400px;
-        }
-
-        #order-form h2 {
-            margin-top: 0;
-        }
-
-        #output {
-            margin-top: 15px;
-        }
-
-        /* Products */
-        #products {
-            margin-top: 40px;
-        }
-
         .product-list {
-            display: flex;
-            flex-wrap: wrap;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
             gap: 15px;
+            margin-top: 15px;
         }
 
-        .product {
+        .product-card {
             border: 1px solid #ddd;
-            border-radius: 6px;
+            border-radius: 8px;
             padding: 15px;
-            width: 200px;
-            box-sizing: border-box;
+            background-color: #fafafa;
         }
 
-        .product h3 {
+        .product-card h3 {
             margin-top: 0;
         }
 
-        .product p {
-            margin: 5px 0;
+        .order-card {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px 0;
+            background-color: #fafafa;
         }
 
-        /* Orders */
-        #orders {
+        .hidden {
             display: none;
-            margin-top: 40px;
         }
 
-        .order-list {
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-            max-width: 600px;
+        pre {
+            white-space: pre-wrap;
         }
 
-        .order {
-            border: 1px solid #ddd;
-            border-radius: 6px;
-            padding: 15px;
-        }
-
-        .order h3 {
-            margin-top: 0;
-        }
-
-        .order p {
-            margin: 5px 0;
-        }
-
-        /* Staff password popup */
-        #staff-popup {
+        .modal {
             display: none;
             position: fixed;
-            top: 0;
+            z-index: 1000;
             left: 0;
+            top: 0;
             width: 100%;
             height: 100%;
-            background-color: rgba(0, 0, 0, 0.4);
-            justify-content: center;
-            align-items: center;
+            background-color: rgba(0, 0, 0, 0.5);
         }
 
-        .staff-popup-content {
+        .modal-content {
             background-color: white;
+            width: 350px;
+            max-width: 90%;
+            margin: 120px auto;
             padding: 25px;
             border-radius: 8px;
-            width: 300px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
         }
 
-        .staff-popup-content h2 {
+        .modal-content h2 {
             margin-top: 0;
         }
 
-        .staff-popup-content input {
-            width: 100%;
-            padding: 9px;
+        .modal-content input {
+            width: calc(100% - 12px);
             box-sizing: border-box;
-            margin-bottom: 12px;
+            margin: 5px 0;
         }
 
-        .staff-popup-buttons {
-            display: flex;
-            gap: 10px;
-        }
-
-        .staff-login-button {
-            padding: 9px 15px;
-            background-color: #555;
-            color: white;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-        }
-
-        .staff-login-button:hover {
-            background-color: #333;
+        .modal-buttons {
+            margin-top: 10px;
         }
 
         .cancel-button {
-            padding: 9px 15px;
-            background-color: #ddd;
-            color: #333;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
+            background-color: #777;
         }
 
         .cancel-button:hover {
-            background-color: #ccc;
+            background-color: #555;
         }
 
-        #staff-password-output {
-            margin-top: 10px;
-            color: #dc2626;
+        .error {
+            color: red;
+        }
+
+        .success {
+            color: green;
         }
     </style>
 </head>
 
 <body>
 
-    <!-- Header -->
-    <div class="header">
+<header>
+    <h1>Customer Orders System</h1>
+    <button class="staff-button" onclick="showStaffPopup()">Staff Mode</button>
+</header>
 
-        <h1>Customer Orders System</h1>
+<div class="container">
 
-        <button class="staff-button" onclick="showStaffPopup()">
-            Staff Mode
-        </button>
-
-    </div>
-
-
-    <!-- Pseudo login -->
-    <div id="login">
-
+    <div id="loginSection" class="section">
         <h2>Customer Login</h2>
 
-        <p>Enter your name and email to continue.</p>
+        <input
+            type="text"
+            id="loginName"
+            placeholder="Name"
+        >
 
-        <div class="form-group">
-            <label for="login-name">Name</label>
+        <input
+            type="email"
+            id="loginEmail"
+            placeholder="Email"
+        >
+
+        <button onclick="customerLogin()">Login</button>
+
+        <pre id="loginOutput"></pre>
+    </div>
+
+    <div id="customerSection" class="hidden">
+
+        <div class="section">
+            <h2 id="welcomeMessage"></h2>
+
+            <button onclick="showCreateOrder()">Create Order</button>
+            <button onclick="showOrders()">View Orders</button>
+        </div>
+
+        <div id="createOrderSection" class="section hidden">
+            <h2>Create Order</h2>
+
+            <label for="productSelect">Product:</label>
+
+            <select id="productSelect">
+                <option value="">Select a product</option>
+            </select>
+
+            <br>
+
+            <label for="quantity">Quantity:</label>
+
+            <input
+                type="number"
+                id="quantity"
+                min="1"
+                value="1"
+            >
+
+            <br>
+
+            <label for="deliveryAddress">Delivery Address:</label>
 
             <input
                 type="text"
-                id="login-name"
-                placeholder="Your name"
+                id="deliveryAddress"
+                placeholder="Delivery address"
             >
+
+            <br>
+
+            <button onclick="createOrder()">Create Order</button>
+
+            <pre id="orderOutput"></pre>
         </div>
 
-        <div class="form-group">
-            <label for="login-email">Email</label>
+        <div id="productsSection" class="section">
+            <h2>Products</h2>
 
-            <input
-                type="email"
-                id="login-email"
-                placeholder="Your email"
-            >
+            <div id="productList" class="product-list"></div>
         </div>
 
-        <button class="submit-button" onclick="login()">
-            Login
-        </button>
-
-        <p id="login-output"></p>
-
-    </div>
-
-
-    <!-- Customer content -->
-    <div id="customer-content">
-
-        <div id="customer-info"></div>
-
-        <p>Choose an action:</p>
-
-        <div>
-
-            <button class="nav-button" onclick="showOrderForm()">
-                Create Order
-            </button>
-
-            <button class="nav-button" onclick="viewOrders()">
-                View Orders
-            </button>
-
-        </div>
-
-
-        <!-- Create Order Form -->
-        <div id="order-form">
-
-            <h2>Create Order</h2>
-
-            <div class="form-group">
-                <label for="product">Product</label>
-
-                <select id="product">
-                    <option value="">Select a product</option>
-                </select>
-            </div>
-
-            <div class="form-group">
-                <label for="quantity">Quantity</label>
-
-                <input
-                    type="number"
-                    id="quantity"
-                    min="1"
-                    placeholder="Quantity"
-                >
-            </div>
-
-            <div class="form-group">
-                <label for="address">Delivery Address</label>
-
-                <input
-                    type="text"
-                    id="address"
-                    placeholder="Delivery address"
-                >
-            </div>
-
-            <button class="submit-button" onclick="createOrder()">
-                Place Order
-            </button>
-
-            <pre id="output"></pre>
-
-        </div>
-
-
-        <!-- Customer Orders -->
-        <div id="orders">
-
+        <div id="ordersSection" class="section hidden">
             <h2>My Orders</h2>
 
-            <p id="orders-loading"></p>
-
-            <div id="order-list" class="order-list"></div>
-
-        </div>
-
-
-        <!-- Products -->
-        <div id="products">
-
-            <h2>Available Products</h2>
-
-            <p id="loading">Loading products...</p>
-
-            <div id="product-list" class="product-list"></div>
-
+            <div id="ordersList"></div>
         </div>
 
     </div>
 
+</div>
 
-    <!-- Staff Password Popup -->
-    <div id="staff-popup">
+<div id="staffModal" class="modal">
 
-        <div class="staff-popup-content">
+    <div class="modal-content">
 
-            <h2>Staff Mode</h2>
+        <h2>Staff Login</h2>
 
-            <p>Enter the staff password.</p>
+        <input
+            type="email"
+            id="staffEmail"
+            placeholder="Staff email"
+        >
 
-            <input
-                type="password"
-                id="staff-password"
-                placeholder="Password"
-                onkeydown="if(event.key === 'Enter') checkStaffPassword()"
+        <input
+            type="password"
+            id="staffPassword"
+            placeholder="Password"
+        >
+
+        <div class="modal-buttons">
+            <button onclick="checkStaffLogin()">Login</button>
+
+            <button
+                class="cancel-button"
+                onclick="closeStaffPopup()"
             >
-
-            <div class="staff-popup-buttons">
-
-                <button
-                    class="staff-login-button"
-                    onclick="checkStaffPassword()"
-                >
-                    Enter
-                </button>
-
-                <button
-                    class="cancel-button"
-                    onclick="closeStaffPopup()"
-                >
-                    Cancel
-                </button>
-
-            </div>
-
-            <p id="staff-password-output"></p>
-
+                Cancel
+            </button>
         </div>
+
+        <pre id="staffOutput"></pre>
 
     </div>
 
+</div>
 
-    <script>
+<script>
 
-        // Store the logged-in customer's ID
-        let customerId = null;
+    let customerId = null;
+
+    let products = [];
+
+    async function customerLogin() {
+
+        const name = document.getElementById("loginName").value;
+        const email = document.getElementById("loginEmail").value;
+
+        const response = await fetch("/customer-login", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                name: name,
+                email: email
+            })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+
+            customerId = data.id;
+
+            document.getElementById("loginSection").classList.add("hidden");
+
+            document
+                .getElementById("customerSection")
+                .classList.remove("hidden");
+
+            document.getElementById("welcomeMessage").textContent =
+                "Welcome, " + data.name;
+
+            document.getElementById("loginOutput").textContent = "";
+
+            loadProducts();
+
+        } else {
+
+            document.getElementById("loginOutput").textContent =
+                "Error: " + JSON.stringify(data.detail);
+
+        }
+    }
 
 
-        // Show staff password popup
-        function showStaffPopup() {
+    async function loadProducts() {
 
-            document.getElementById("staff-popup").style.display =
-                "flex";
+        const response = await fetch("/products");
 
-            document.getElementById("staff-password").value = "";
+        const data = await response.json();
 
-            document.getElementById("staff-password-output").textContent =
-                "";
+        if (!response.ok) {
 
-            document.getElementById("staff-password").focus();
+            document.getElementById("productList").textContent =
+                "Error loading products";
+
+            return;
+        }
+
+        products = data;
+
+        const productSelect =
+            document.getElementById("productSelect");
+
+        productSelect.innerHTML =
+            '<option value="">Select a product</option>';
+
+        const productList =
+            document.getElementById("productList");
+
+        productList.innerHTML = "";
+
+        for (const product of data) {
+
+            const option = document.createElement("option");
+
+            option.value = product.id;
+
+            option.textContent =
+                product.name +
+                " - $" +
+                product.price +
+                " (" +
+                product.stock +
+                " in stock)";
+
+            productSelect.appendChild(option);
+
+
+            const card = document.createElement("div");
+
+            card.className = "product-card";
+
+            card.innerHTML =
+                "<h3>" + product.name + "</h3>" +
+                "<p>Product ID: " + product.id + "</p>" +
+                "<p>Price: $" + product.price + "</p>" +
+                "<p>Stock: " + product.stock + "</p>";
+
+            productList.appendChild(card);
+        }
+    }
+
+
+    function showCreateOrder() {
+
+        document
+            .getElementById("createOrderSection")
+            .classList.remove("hidden");
+
+        document
+            .getElementById("ordersSection")
+            .classList.add("hidden");
+
+    }
+
+
+    async function createOrder() {
+
+        const productId =
+            document.getElementById("productSelect").value;
+
+        const quantity =
+            document.getElementById("quantity").value;
+
+        const deliveryAddress =
+            document.getElementById("deliveryAddress").value;
+
+
+        if (!productId) {
+
+            document.getElementById("orderOutput").textContent =
+                "Please select a product";
+
+            return;
         }
 
 
-        // Close staff password popup
-        function closeStaffPopup() {
-
-            document.getElementById("staff-popup").style.display =
-                "none";
-        }
-
-
-        // Check staff password
-        function checkStaffPassword() {
-
-            const password =
-                document.getElementById("staff-password").value;
-
-            const output =
-                document.getElementById("staff-password-output");
-
-
-            if (password === "dummypw") {
-
-                window.location.href = "/staff";
-
-            } else {
-
-                output.textContent =
-                    "Incorrect password.";
-            }
-        }
-
-
-        // Customer login
-        async function login() {
-
-            const name =
-                document.getElementById("login-name").value;
-
-            const email =
-                document.getElementById("login-email").value;
-
-            const output =
-                document.getElementById("login-output");
-
-
-            if (!name || !email) {
-
-                output.textContent =
-                    "Please enter your name and email.";
-
-                return;
-            }
-
-
-            const response = await fetch("/customer-login", {
-
+        const response = await fetch(
+            "/customers/" + customerId + "/orders",
+            {
                 method: "POST",
 
                 headers: {
@@ -516,319 +439,207 @@
                 },
 
                 body: JSON.stringify({
-                    name: name,
-                    email: email
+                    product_id: Number(productId),
+                    quantity: Number(quantity),
+                    delivery_address: deliveryAddress || null
                 })
-            });
-
-
-            const data = await response.json();
-
-
-            if (!response.ok) {
-
-                output.textContent =
-                    "Error: " + data.detail;
-
-                return;
             }
+        );
 
 
-            // Save the customer's ID
-            customerId = data.id;
+        const data = await response.json();
 
 
-            // Hide login
-            document.getElementById("login").style.display =
-                "none";
+        if (response.ok) {
 
+            document.getElementById("orderOutput").textContent =
+                "Order created successfully. Order ID: " +
+                data.id;
 
-            // Show customer content
-            document.getElementById("customer-content").style.display =
-                "block";
+            document.getElementById("quantity").value = 1;
 
+            document.getElementById("deliveryAddress").value = "";
 
-            // Show customer name
-            document.getElementById("customer-info").textContent =
-                "Welcome, " + data.name;
-
-
-            // Load products
             loadProducts();
+
+        } else {
+
+            document.getElementById("orderOutput").textContent =
+                "Error: " + JSON.stringify(data.detail);
+
+        }
+    }
+
+
+    function showOrders() {
+
+        document
+            .getElementById("createOrderSection")
+            .classList.add("hidden");
+
+        document
+            .getElementById("ordersSection")
+            .classList.remove("hidden");
+
+        loadOrders();
+
+    }
+
+
+    async function loadOrders() {
+
+        const response = await fetch(
+            "/customers/" + customerId + "/orders"
+        );
+
+        const data = await response.json();
+
+        const ordersList =
+            document.getElementById("ordersList");
+
+        ordersList.innerHTML = "";
+
+
+        if (!response.ok) {
+
+            ordersList.textContent =
+                "Error: " + JSON.stringify(data.detail);
+
+            return;
         }
 
 
-        // Show or hide create order form
-        function showOrderForm() {
+        if (data.length === 0) {
 
-            const form =
-                document.getElementById("order-form");
+            ordersList.textContent =
+                "You have no orders.";
 
-            if (form.style.display === "none") {
-                form.style.display = "block";
-            } else {
-                form.style.display = "none";
-            }
+            return;
         }
 
 
-        // View customer's orders
-        async function viewOrders() {
+        for (const order of data) {
 
-            if (!customerId) {
-
-                return;
-            }
-
-
-            const ordersSection =
-                document.getElementById("orders");
-
-            const loading =
-                document.getElementById("orders-loading");
-
-            const orderList =
-                document.getElementById("order-list");
-
-
-            // Show orders section
-            ordersSection.style.display = "block";
-
-
-            // Clear previous orders
-            orderList.innerHTML = "";
-
-            loading.textContent = "Loading orders...";
-
-
-            try {
-
-                const response = await fetch(
-                    "/customers/" + customerId + "/orders"
+            const product =
+                products.find(
+                    p => p.id === order.product_id
                 );
 
-
-                const orders = await response.json();
-
-
-                if (!response.ok) {
-
-                    loading.textContent =
-                        "Unable to load orders.";
-
-                    return;
-                }
+            const productName =
+                product
+                    ? product.name
+                    : "Unknown product";
 
 
-                loading.textContent = "";
+            const card =
+                document.createElement("div");
+
+            card.className = "order-card";
+
+            card.innerHTML =
+                "<h3>Order #" + order.id + "</h3>" +
+                "<p>Product: " +
+                productName +
+                " (ID: " +
+                order.product_id +
+                ")</p>" +
+                "<p>Quantity: " +
+                order.quantity +
+                "</p>" +
+                "<p>Status: " +
+                order.status +
+                "</p>" +
+                "<p>Delivery Address: " +
+                (order.delivery_address || "Not provided") +
+                "</p>" +
+                "<p>Customer ID: " +
+                order.customer_id +
+                "</p>";
+
+            ordersList.appendChild(card);
+        }
+    }
 
 
-                if (orders.length === 0) {
+    function showStaffPopup() {
 
-                    orderList.innerHTML =
-                        "<p>You have no orders.</p>";
+        document.getElementById("staffModal").style.display =
+            "block";
 
-                    return;
-                }
+        document.getElementById("staffEmail").value = "";
+
+        document.getElementById("staffPassword").value = "";
+
+        document.getElementById("staffOutput").textContent = "";
+
+        document.getElementById("staffEmail").focus();
+
+    }
 
 
-                orders.forEach(order => {
+    function closeStaffPopup() {
 
-                    const orderDiv =
-                        document.createElement("div");
+        document.getElementById("staffModal").style.display =
+            "none";
 
-                    orderDiv.className = "order";
+    }
 
-                    orderDiv.innerHTML = `
-                        <h3>Order #${order.id}</h3>
-                        <p><strong>Product ID:</strong> ${order.product_id}</p>
-                        <p><strong>Quantity:</strong> ${order.quantity}</p>
-                        <p><strong>Status:</strong> ${order.status}</p>
-                        <p><strong>Delivery Address:</strong> ${order.delivery_address || "Not provided"}</p>
-                    `;
 
-                    orderList.appendChild(orderDiv);
-                });
+    async function checkStaffLogin() {
 
-            } catch (error) {
+        const email =
+            document.getElementById("staffEmail").value;
 
-                loading.textContent =
-                    "Unable to load orders.";
+        const password =
+            document.getElementById("staffPassword").value;
 
-                console.error(error);
-            }
+
+        const response = await fetch("/staff-login", {
+
+            method: "POST",
+
+            headers: {
+                "Content-Type": "application/json"
+            },
+
+            body: JSON.stringify({
+                email: email,
+                password: password
+            })
+
+        });
+
+
+        const data = await response.json();
+
+
+        if (response.ok) {
+
+            window.location.href = "/staff";
+
+        } else {
+
+            document.getElementById("staffOutput").textContent =
+                "Error: " + JSON.stringify(data.detail);
+
+        }
+    }
+
+
+    window.onclick = function(event) {
+
+        const modal =
+            document.getElementById("staffModal");
+
+        if (event.target === modal) {
+
+            closeStaffPopup();
+
         }
 
+    };
 
-        // Load products
-        async function loadProducts() {
-
-            try {
-
-                const response =
-                    await fetch("/products");
-
-                if (!response.ok) {
-                    throw new Error("Failed to load products");
-                }
-
-                const products =
-                    await response.json();
-
-
-                const loading =
-                    document.getElementById("loading");
-
-                const productList =
-                    document.getElementById("product-list");
-
-                const productSelect =
-                    document.getElementById("product");
-
-
-                loading.remove();
-
-
-                products.forEach(product => {
-
-                    // Product card
-                    const productDiv =
-                        document.createElement("div");
-
-                    productDiv.className = "product";
-
-                    productDiv.innerHTML = `
-                        <h3>${product.name}</h3>
-                        <p>Price: $${product.price.toFixed(2)}</p>
-                        <p>Stock: ${product.stock}</p>
-                    `;
-
-                    productList.appendChild(productDiv);
-
-
-                    // Product dropdown option
-                    const option =
-                        document.createElement("option");
-
-                    option.value = product.id;
-
-                    option.textContent =
-                        `${product.name} - $${product.price.toFixed(2)} (${product.stock} in stock)`;
-
-                    productSelect.appendChild(option);
-                });
-
-
-                if (products.length === 0) {
-
-                    productList.innerHTML =
-                        "<p>No products are currently available.</p>";
-                }
-
-            } catch (error) {
-
-                document.getElementById("loading").textContent =
-                    "Unable to load products.";
-
-                console.error(error);
-            }
-        }
-
-
-        // Create order
-        async function createOrder() {
-
-            const productId =
-                document.getElementById("product").value;
-
-            const quantity =
-                document.getElementById("quantity").value;
-
-            const address =
-                document.getElementById("address").value;
-
-
-            if (!customerId) {
-
-                document.getElementById("output").textContent =
-                    "Please login first.";
-
-                return;
-            }
-
-
-            if (!productId || !quantity || !address) {
-
-                document.getElementById("output").textContent =
-                    "Please fill in all fields.";
-
-                return;
-            }
-
-
-            const response = await fetch(
-                "/customers/" + customerId + "/orders",
-                {
-                    method: "POST",
-
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
-
-                    body: JSON.stringify({
-                        product_id: parseInt(productId),
-                        quantity: parseInt(quantity),
-                        delivery_address: address
-                    })
-                }
-            );
-
-
-            const data = await response.json();
-
-
-            if (response.ok) {
-
-                document.getElementById("output").textContent =
-                    "Order created: Customer ID " +
-                    data.customer_id +
-                    ", Product ID: " +
-                    data.product_id +
-                    ", Quantity: " +
-                    data.quantity +
-                    ", Order Status: " +
-                    data.status;
-
-                // Refresh orders if they are currently visible
-                if (
-                    document.getElementById("orders").style.display === "block"
-                ) {
-                    viewOrders();
-                }
-
-                // Refresh product stock
-                document.getElementById("product-list").innerHTML = "";
-                document.getElementById("product").innerHTML =
-                    '<option value="">Select a product</option>';
-
-                const productsLoading =
-                    document.createElement("p");
-
-                productsLoading.id = "loading";
-                productsLoading.textContent = "Loading products...";
-
-                document.getElementById("products").prepend(productsLoading);
-
-                loadProducts();
-
-            } else {
-
-                document.getElementById("output").textContent =
-                    "Error: " + JSON.stringify(data.detail);
-            }
-        }
-
-    </script>
+</script>
 
 </body>
 </html>
