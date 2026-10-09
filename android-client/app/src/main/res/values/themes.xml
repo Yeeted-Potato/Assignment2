@@ -1,0 +1,10 @@
+<resources>
+    <!-- Platform Material theme. The course starters use Android platform
+         components only, so no AppCompat/Compose theme is required. -->
+    <style name="Theme.CustomerOrders" parent="android:Theme.Material.Light.DarkActionBar">
+        <item name="android:colorPrimary">@color/primary</item>
+        <item name="android:colorPrimaryDark">@color/primary_dark</item>
+        <item name="android:colorAccent">@color/accent</item>
+        <item name="android:windowBackground">@android:color/white</item>
+    </style>
+</resources>

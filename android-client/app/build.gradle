@@ -1,0 +1,38 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'nz.ac.aut.comp713.customerorders'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'nz.ac.aut.comp713.customerorders'
+        minSdk 23
+        targetSdk 34
+        versionCode 1
+        versionName '1.0'
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    // The client deliberately uses only Android platform APIs, matching the
+    // course starter projects:
+    //   java.net.HttpURLConnection  -> HTTP calls to the REST API
+    //   org.json                    -> request/response JSON
+    //   android.location.LocationManager -> one-shot coarse location
+    //   java.util.concurrent.ExecutorService -> keep network work off the UI thread
+    // No Retrofit/OkHttp/Gson/Jetpack dependencies are required.
+}

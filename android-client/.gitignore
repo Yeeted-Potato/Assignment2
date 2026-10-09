@@ -1,0 +1,13 @@
+# Machine specific Android SDK location. Not committed; each developer
+# creates their own (Android Studio writes it automatically).
+local.properties
+
+# Build output and IDE caches - recreatable, excluded from the submission ZIP.
+.gradle/
+build/
+app/build/
+*.iml
+.idea/
+captures/
+.externalNativeBuild/
+.cxx/
