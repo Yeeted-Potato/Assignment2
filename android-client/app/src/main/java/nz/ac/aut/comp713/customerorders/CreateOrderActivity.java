@@ -11,6 +11,7 @@ import android.widget.EditText;
 import android.widget.ProgressBar;
 import android.widget.Spinner;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -322,8 +323,10 @@ public class CreateOrderActivity extends Activity {
                         return;
                     }
                     setLoading(false);
-                    statusView.setTextColor(getColor(R.color.success));
-                    statusView.setText(R.string.create_placed);
+                    // A Toast survives the screen closing, unlike a TextView on
+                    // this Activity which is about to be destroyed by finish().
+                    Toast.makeText(CreateOrderActivity.this, R.string.create_placed,
+                            Toast.LENGTH_LONG).show();
                     // Return to the list, which re-reads from the API in onResume.
                     setResult(RESULT_OK);
                     finish();

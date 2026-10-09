@@ -93,7 +93,8 @@ public class OrderListActivity extends Activity {
             startActivity(intent);
         });
 
-        loadOrders();
+        // No load here: onResume() always follows onCreate() and does the load,
+        // so calling it as well would fire two identical requests on launch.
     }
 
     /**

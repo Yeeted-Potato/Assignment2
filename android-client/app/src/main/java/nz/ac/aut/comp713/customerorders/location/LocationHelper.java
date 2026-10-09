@@ -57,7 +57,6 @@ public final class LocationHelper {
     private Runnable timeoutRunnable;
     private boolean finished;
 
-    @SuppressWarnings("deprecation")
     public LocationHelper(Activity activity) {
         this.activity = activity;
         this.locationManager = (LocationManager) activity.getSystemService(Activity.LOCATION_SERVICE);
@@ -86,7 +85,13 @@ public final class LocationHelper {
     /**
      * Tries to obtain one usable position. Exactly one of the callback methods
      * is called, always on the main thread.
+     *
+     * requestSingleUpdate is deprecated in favour of the Fused Location
+     * Provider, but the course teaches the platform LocationManager API and
+     * adds no Google Play services dependency, so the platform call is used
+     * deliberately here.
      */
+    @SuppressWarnings("deprecation")
     public void requestFix(final Callback callback) {
         finished = false;
 
@@ -204,6 +209,8 @@ public final class LocationHelper {
         return best;
     }
 
+    /** getBestProvider is deprecated with the platform location API, used here for the same reason as requestSingleUpdate. */
+    @SuppressWarnings("deprecation")
     private String bestEnabledProvider() {
         Criteria criteria = new Criteria();
         criteria.setAccuracy(Criteria.ACCURACY_COARSE);
