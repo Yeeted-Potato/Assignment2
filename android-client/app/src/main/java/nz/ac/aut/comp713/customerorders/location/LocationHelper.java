@@ -12,35 +12,24 @@ import android.os.Looper;
 
 import java.util.List;
 
-/**
- * Week 9 mobile capability: a single coarse FOREGROUND location fix, with a
- * manual fallback left entirely to the caller.
- *
- * Rules this class follows, straight from the Week 9 material:
- *   - only coarse foreground location is requested; never background location
- *   - a fix is best-effort and may be missing, stale or slow
- *   - when no usable fix exists the caller is TOLD, and must let the user type
- *     a delivery address instead
- *   - coordinates are never invented or guessed
- *   - the request is one-shot, not a continuous stream, and is cancelled when
- *     the screen goes away
- */
+//gets one coarse foreground location fix from the phone
+//if no fix is available the caller is told and the customer can type an address instead
 public final class LocationHelper {
 
-    /** Reasons a fix could not be supplied, so each screen shows the right message. */
+    //why a fix was not available, so each screen can show the right message
     public static final int REASON_PERMISSION_DENIED = 1;
     public static final int REASON_SERVICES_DISABLED = 2;
     public static final int REASON_TIMEOUT = 3;
     public static final int REASON_NO_FIX = 4;
     public static final int REASON_STALE_ONLY = 5;
 
-    /** Must match the request code checked in Activity.onRequestPermissionsResult. */
+    //must match the code checked in onRequestPermissionsResult
     public static final int PERMISSION_REQUEST_CODE = 4201;
 
-    /** A cached fix older than this is treated as stale and deliberately not used. */
+    //a cached fix older than this counts as stale and is not used
     private static final long STALE_AFTER_MS = 2 * 60 * 1000L;
 
-    /** How long to wait for a fresh one-shot fix before giving up. */
+    //how long to wait for a fresh fix before giving up
     private static final long FIX_TIMEOUT_MS = 10 * 1000L;
 
     public interface Callback {
@@ -69,45 +58,38 @@ public final class LocationHelper {
                     == PackageManager.PERMISSION_GRANTED;
     }
 
-    /** Asks for coarse foreground location only. The answer arrives in onRequestPermissionsResult. */
+    //asks for coarse foreground location only, the answer comes back to onRequestPermissionsResult
     public void requestLocationPermission() {
         activity.requestPermissions(
                 new String[]{Manifest.permission.ACCESS_COARSE_LOCATION},
                 PERMISSION_REQUEST_CODE);
     }
 
-    /** False when the user has turned location off at the device level. */
+    //false when the user has turned location off on the device
     public boolean isAnyProviderEnabled() {
         return locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)
                 || locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER);
     }
 
-    /**
-     * Tries to obtain one usable position. Exactly one of the callback methods
-     * is called, always on the main thread.
-     *
-     * requestSingleUpdate is deprecated in favour of the Fused Location
-     * Provider, but the course teaches the platform LocationManager API and
-     * adds no Google Play services dependency, so the platform call is used
-     * deliberately here.
-     */
+    //tries to get one usable position, always calls back on the main thread
+    //requestSingleUpdate is deprecated but is the platform api the course teaches
     @SuppressWarnings("deprecation")
     public void requestFix(final Callback callback) {
         finished = false;
 
-        // 1. Permission: the app must never silently continue without it.
+        //tell the caller if we do not have permission yet
         if (!hasLocationPermission()) {
             callback.onUnavailable(REASON_PERMISSION_DENIED);
             return;
         }
 
-        // 2. Location services switched off at the device level.
+        //tell the caller if location is switched off
         if (!isAnyProviderEnabled()) {
             callback.onUnavailable(REASON_SERVICES_DISABLED);
             return;
         }
 
-        // 3. A recent cached fix is good enough and avoids waiting for a new one.
+        //use a recent cached fix if there is one, no need to wait
         Location cached = bestLastKnown();
         boolean sawStaleFix = cached != null;
         if (cached != null && !isStale(cached)) {
@@ -116,7 +98,7 @@ public final class LocationHelper {
             return;
         }
 
-        // 4. Otherwise ask for exactly one fresh fix.
+        //otherwise ask for one fresh fix
         String provider = bestEnabledProvider();
         if (provider == null) {
             finished = true;
@@ -153,14 +135,14 @@ public final class LocationHelper {
             // One-shot request rather than a continuous location stream.
             locationManager.requestSingleUpdate(provider, activeListener, Looper.getMainLooper());
         } catch (SecurityException e) {
-            // Permission was revoked between the check above and this call.
+            //permission was revoked after the check above
             stopUpdates();
             if (!finished) {
                 finished = true;
                 callback.onUnavailable(REASON_PERMISSION_DENIED);
             }
         } catch (IllegalArgumentException e) {
-            // The chosen provider disappeared; there is no fix to be had.
+            //the chosen provider is gone
             stopUpdates();
             if (!finished) {
                 finished = true;
@@ -169,7 +151,7 @@ public final class LocationHelper {
         }
     }
 
-    /** Stops any in-flight request. Call this from Activity.onStop() or onDestroy(). */
+    //stops any request still running, called when the screen closes
     public void cancel() {
         finished = true;
         stopUpdates();
@@ -184,13 +166,13 @@ public final class LocationHelper {
             try {
                 locationManager.removeUpdates(activeListener);
             } catch (SecurityException ignored) {
-                // Nothing to clean up if the permission has already gone.
+                //nothing to clean up if the permission is already gone
             }
             activeListener = null;
         }
     }
 
-    /** The most recent fix any provider holds, or null if none exists at all. */
+    //the most recent fix any provider has, or null if there is none
     private Location bestLastKnown() {
         Location best = null;
         List<String> providers = locationManager.getAllProviders();
@@ -209,7 +191,7 @@ public final class LocationHelper {
         return best;
     }
 
-    /** getBestProvider is deprecated with the platform location API, used here for the same reason as requestSingleUpdate. */
+    //getBestProvider is deprecated too but kept for the same reason as requestSingleUpdate
     @SuppressWarnings("deprecation")
     private String bestEnabledProvider() {
         Criteria criteria = new Criteria();
@@ -218,7 +200,7 @@ public final class LocationHelper {
         return provider != null ? provider : LocationManager.NETWORK_PROVIDER;
     }
 
-    /** Week 9: stale data must be detected rather than presented as current. */
+    //a stale fix must not be shown to the customer as if it were current
     private static boolean isStale(Location location) {
         return Math.abs(System.currentTimeMillis() - location.getTime()) > STALE_AFTER_MS;
     }

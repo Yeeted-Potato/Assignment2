@@ -12,38 +12,19 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 
-/**
- * Thin HTTP + JSON helper built only on java.net and org.json, which are
- * Android platform APIs (Week 9: HttpsURLConnection-style networking with no
- * third party client library).
- *
- * Every call here blocks on the network, so it must be run from a background
- * executor. Results are posted back to the UI thread by the caller with
- * Activity.runOnUiThread(...).
- *
- * The client never reads or writes the database directly: all data reaches the
- * app through the REST API, exactly as the assignment requires.
- */
+//http + json helper using only java.net and org.json, the android platform apis
+//every call blocks, so it must be run off the UI thread
 public final class ApiClient {
 
-    /**
-     * 10.0.2.2 is the Android emulator's alias for the development machine's
-     * own localhost, so the app reaches a backend running on the host at
-     * port 8000. On a physical device, change this to the host machine's LAN
-     * address (for example http://192.168.1.20:8000).
-     */
+    //10.0.2.2 is the emulator's address for the computer running the API
+    //on a real phone change this to the computer's LAN address
     public static String BASE_URL = "http://10.0.2.2:8000";
 
     private static final int CONNECT_TIMEOUT_MS = 5000;
     private static final int READ_TIMEOUT_MS = 8000;
 
-    /**
-     * One shared, application scoped pool. It is deliberately NOT shut down in
-     * Activity.onDestroy(): an Activity is destroyed and recreated on every
-     * rotation, and killing the pool there would abandon an in-flight request
-     * and lose the user's work. The callbacks check Activity.isDestroyed()
-     * before touching any view instead.
-     */
+    //one shared pool for all network work
+    //it is not shut down in onDestroy because rotation would then kill requests in flight
     private static final ExecutorService IO = Executors.newFixedThreadPool(2, new ThreadFactory() {
         @Override
         public Thread newThread(Runnable runnable) {
@@ -56,17 +37,17 @@ public final class ApiClient {
     private ApiClient() {
     }
 
-    /** The shared background pool that all network work must use. */
+    //the pool all network work runs on
     public static ExecutorService executor() {
         return IO;
     }
 
-    /** GET a resource and return the raw response body. */
+    //get a resource and return the response body
     public static String get(String path) throws IOException, ApiException {
         return request("GET", path, null);
     }
 
-    /** POST a JSON body and return the raw response body. */
+    //post a json body and return the response body
     public static String post(String path, String jsonBody) throws IOException, ApiException {
         return request("POST", path, jsonBody);
     }

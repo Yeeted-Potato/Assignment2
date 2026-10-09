@@ -1,13 +1,13 @@
 <resources>
     <string name="app_name">Customer Orders</string>
 
-    <!-- Shared messages -->
+    <!-- shared messages -->
     <string name="error_network">Could not reach the server. Check that the API is running, then try again.</string>
     <string name="error_unexpected">Something went wrong. Please try again.</string>
     <string name="loading">Loading…</string>
     <string name="retry">Retry</string>
 
-    <!-- Screen 1: sign in -->
+    <!-- screen 1: sign in -->
     <string name="login_title">Customer sign in</string>
     <string name="login_intro">Sign in with the name and email on your customer account.</string>
     <string name="login_name_hint">Name</string>
@@ -16,14 +16,14 @@
     <string name="login_missing_details">Enter both a name and an email.</string>
     <string name="login_unknown">No customer matches that name and email.</string>
 
-    <!-- Screen 2: order list -->
+    <!-- screen 2: order list -->
     <string name="orders_title">My orders</string>
     <string name="orders_signed_in_as">Signed in as %1$s</string>
     <string name="orders_empty">You have no orders yet. Tap “New order” to place one.</string>
     <string name="orders_new">New order</string>
     <string name="orders_refresh">Refresh</string>
 
-    <!-- Screen 3: create order -->
+    <!-- screen 3: create order -->
     <string name="create_title">New order</string>
     <string name="create_product_label">Product</string>
     <string name="create_products_empty">No products available yet.</string>
@@ -39,7 +39,7 @@
     <string name="create_no_product">Choose a product first.</string>
     <string name="create_placed">Order placed. It is now waiting for staff to confirm it.</string>
 
-    <!-- Location states (Week 9: never invent coordinates, always explain) -->
+    <!-- location states, one message for each reason a fix can fail -->
     <string name="location_idle">No location captured yet.</string>
     <string name="location_requesting">Getting your location…</string>
     <string name="location_permission_needed">Location permission is needed to use your position. You can type an address instead.</string>

@@ -27,21 +27,8 @@ import nz.ac.aut.comp713.customerorders.api.ApiException;
 import nz.ac.aut.comp713.customerorders.location.LocationHelper;
 import nz.ac.aut.comp713.customerorders.model.Product;
 
-/**
- * Screen 3 of 3: place an order, including the mobile capability.
- *
- * Mobile capability (Week 9): the delivery destination can be captured from
- * the device's coarse foreground location, with a typed address as the manual
- * fallback. The rules the app follows are:
- *   - the position is only ever real; it is never invented or approximated
- *   - if permission is denied, location services are off, the fix is stale or
- *     no fix arrives in time, the user is told and can type an address instead
- *   - at least one of (device location, typed address) is required, which is
- *     the same rule the API enforces
- *
- * Both values are sent to the API and stored on the order, so staff on the web
- * client can see where the delivery is going.
- */
+//screen 3: place an order, and capture the delivery location from the phone
+//if the phone cannot give a location the customer types an address instead
 public class CreateOrderActivity extends Activity {
 
     public static final String EXTRA_CUSTOMER_ID = "extra_customer_id";
@@ -69,7 +56,7 @@ public class CreateOrderActivity extends Activity {
 
     private LocationHelper locationHelper;
 
-    /** Captured device position. Null means "use the typed address instead". */
+    //the position from the phone, null means use the typed address instead
     private Double latitude;
     private Double longitude;
 
@@ -129,12 +116,10 @@ public class CreateOrderActivity extends Activity {
 
     @Override
     protected void onDestroy() {
-        // Never leave a location request running against a dead screen.
+        //stop any location request when the screen goes away
         locationHelper.cancel();
         super.onDestroy();
     }
-
-    // ---------------------------------------------------------------- product
 
     private void loadProducts() {
         setLoading(true);
@@ -170,13 +155,11 @@ public class CreateOrderActivity extends Activity {
         });
     }
 
-    // -------------------------------------------------------------- location
-
     private void useMyLocation() {
         statusView.setText("");
 
+        //ask for the permission first if we do not have it yet
         if (!locationHelper.hasLocationPermission()) {
-            // The answer comes back to onRequestPermissionsResult below.
             locationStatusView.setText(R.string.location_permission_needed);
             locationHelper.requestLocationPermission();
             return;
@@ -184,6 +167,7 @@ public class CreateOrderActivity extends Activity {
         requestFix();
     }
 
+    //runs after the user answers the permission dialog
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions,
                                            int[] grantResults) {
@@ -195,7 +179,7 @@ public class CreateOrderActivity extends Activity {
         if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
             requestFix();
         } else {
-            // Declined: fall back to the typed address, which is still a valid order.
+            //the typed address still works as a fallback
             latitude = null;
             longitude = null;
             showLocationUnavailable(LocationHelper.REASON_PERMISSION_DENIED);
@@ -233,10 +217,7 @@ public class CreateOrderActivity extends Activity {
         });
     }
 
-    /**
-     * Every failure mode clears the coordinates and points the user at the
-     * manual fallback, so a broken location never blocks an order.
-     */
+    //every failure mode clears the location and points the customer at the typed address
     private void showLocationUnavailable(int reason) {
         latitude = null;
         longitude = null;
@@ -264,8 +245,6 @@ public class CreateOrderActivity extends Activity {
         locationStatusView.setTextColor(getColor(R.color.error));
         locationStatusView.setText(message);
     }
-
-    // ----------------------------------------------------------------- order
 
     private void placeOrder() {
         statusView.setText("");
@@ -323,11 +302,10 @@ public class CreateOrderActivity extends Activity {
                         return;
                     }
                     setLoading(false);
-                    // A Toast survives the screen closing, unlike a TextView on
-                    // this Activity which is about to be destroyed by finish().
+                    //a toast is used so the message is still seen after the screen closes
                     Toast.makeText(CreateOrderActivity.this, R.string.create_placed,
                             Toast.LENGTH_LONG).show();
-                    // Return to the list, which re-reads from the API in onResume.
+                    //go back to the order list, which reloads in onResume
                     setResult(RESULT_OK);
                     finish();
                 });

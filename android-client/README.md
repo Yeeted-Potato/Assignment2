@@ -115,12 +115,18 @@ action where retrying makes sense.
 - An in-flight location request is cancelled in `onDestroy()` so it can never
   call back into a dead screen.
 
-> **Trade-off:** the Week 9 lecture recommends Jetpack `ViewModel` + repository
-> for state that must survive rotation. This client deliberately uses the
-> platform `onSaveInstanceState` approach instead, because the course starter
-> projects use platform APIs only and adding Jetpack would pull in the first
-> external dependency. The cost is that a request in flight during rotation is
-> restarted rather than retained.
+> **Trade-offs, kept brief for marking.** Two deliberate choices depart from what the
+> Week 9 lecture suggests, and both are worth a line in the individual report:
+>
+> 1. **Location API.** `LocationManager.requestSingleUpdate` and `getBestProvider` are
+>    deprecated in favour of the Fused Location Provider. The platform API is used anyway,
+>    because the course teaches it and Fused would pull in the first external dependency
+>    (Google Play services). This is also the only source of compiler warnings, suppressed
+>    at the two call sites.
+> 2. **Rotation state.** The lecture recommends Jetpack `ViewModel` + repository for state
+>    that must survive rotation. This client uses the platform `onSaveInstanceState` instead,
+>    for the same no-external-dependencies reason. The cost is that a request in flight
+>    during rotation is restarted rather than retained.
 
 ## Known limitations
 

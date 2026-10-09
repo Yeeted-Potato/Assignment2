@@ -3,13 +3,8 @@ package nz.ac.aut.comp713.customerorders.model;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-/**
- * An order from GET /customers/{id}/orders or POST /customers/{id}/orders.
- *
- * The API returns the order row on its own, so the product name is joined in
- * by the caller from GET /products. This matches what the web client already
- * does and keeps the Android branch free of backend changes.
- */
+//an order, from get /customers/{id}/orders or post /customers/{id}/orders
+//the product name is added by the caller from get /products
 public final class Order {
 
     public final int id;
@@ -18,10 +13,10 @@ public final class Order {
     public final int quantity;
     public final String status;
 
-    /** Typed by hand when the device could not supply a position. */
+    //typed by hand when the phone could not give a position
     public final String deliveryAddress;
 
-    /** Supplied by the phone's location fix. Null when a typed address was used. */
+    //from the phone's location, null when a typed address was used
     public final Double latitude;
     public final Double longitude;
 
@@ -49,7 +44,7 @@ public final class Order {
                 json.isNull("longitude") ? null : json.getDouble("longitude"));
     }
 
-    /** True when the order was placed with a device position rather than typed text. */
+    //true when the order used a position from the phone instead of typed text
     public boolean hasDeviceLocation() {
         return latitude != null && longitude != null;
     }

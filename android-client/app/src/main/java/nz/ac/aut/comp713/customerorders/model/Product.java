@@ -5,7 +5,7 @@ import org.json.JSONObject;
 
 import java.util.Locale;
 
-/** A product from GET /products. */
+//a product from get /products
 public final class Product {
 
     public final int id;
@@ -28,7 +28,7 @@ public final class Product {
                 json.getInt("stock"));
     }
 
-    /** Label used by the product spinner on the create-order screen. */
+    //the text shown in the product spinner on the create order screen
     @Override
     public String toString() {
         return String.format(Locale.US, "%s - $%.2f (%d left)", name, price, stock);

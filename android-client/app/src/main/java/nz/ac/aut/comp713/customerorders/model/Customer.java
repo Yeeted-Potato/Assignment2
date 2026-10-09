@@ -3,7 +3,7 @@ package nz.ac.aut.comp713.customerorders.model;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-/** A customer account, as returned by POST /customer-login. */
+//a customer account, as returned by post /customer-login
 public final class Customer {
 
     public final int id;

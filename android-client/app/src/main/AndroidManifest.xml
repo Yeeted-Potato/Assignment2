@@ -1,16 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- Week 9: the app makes real HTTP calls to the REST API. -->
+    <!-- the app calls the api over http -->
     <uses-permission android:name="android.permission.INTERNET" />
 
-    <!-- Week 9: coarse FOREGROUND location only. No background location is
-         requested or needed for the delivery-location workflow. -->
+    <!-- coarse foreground location only, no background location -->
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 
-    <!-- Location is the optional mobile capability with a manual fallback, so
-         the app must still install and run on devices without any location
-         hardware. -->
+    <!-- the app must still run on devices with no location hardware -->
     <uses-feature android:name="android.hardware.location" android:required="false" />
     <uses-feature android:name="android.hardware.location.gps" android:required="false" />
 
@@ -21,7 +18,7 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.CustomerOrders">
 
-        <!-- Screen 1: customer sign in. -->
+        <!-- screen 1: sign in -->
         <activity
             android:name=".MainActivity"
             android:exported="true">
@@ -31,12 +28,12 @@
             </intent-filter>
         </activity>
 
-        <!-- Screen 2: the signed in customer's orders. -->
+        <!-- screen 2: the customer's orders -->
         <activity
             android:name=".OrderListActivity"
             android:exported="false" />
 
-        <!-- Screen 3: place an order with a delivery location. -->
+        <!-- screen 3: place an order -->
         <activity
             android:name=".CreateOrderActivity"
             android:exported="false" />

@@ -28,17 +28,8 @@ import nz.ac.aut.comp713.customerorders.api.ApiException;
 import nz.ac.aut.comp713.customerorders.model.Order;
 import nz.ac.aut.comp713.customerorders.model.Product;
 
-/**
- * Screen 2 of 3: the signed in customer's orders and their current status.
- *
- * This is the screen that makes the workflow shared. Staff advance an order on
- * the web client, and the next load here shows the new status, because the
- * status is read back from the server every time rather than cached locally.
- *
- * The order rows from the API carry product_id only, so the product names are
- * joined in from GET /products. The web client already does the same join, so
- * no backend change is needed for the Android client.
- */
+//screen 2: the signed in customer sees their orders and their current status
+//staff change the status on the web client and it shows up here
 public class OrderListActivity extends Activity {
 
     public static final String EXTRA_CUSTOMER_ID = "extra_customer_id";
@@ -93,14 +84,9 @@ public class OrderListActivity extends Activity {
             startActivity(intent);
         });
 
-        // No load here: onResume() always follows onCreate() and does the load,
-        // so calling it as well would fire two identical requests on launch.
+        //load orders in onResume so they refresh when coming back to this screen
     }
 
-    /**
-     * Re-read from the server every time the screen comes back, so an order
-     * just placed on this phone or just advanced by staff is always current.
-     */
     @Override
     protected void onResume() {
         super.onResume();
@@ -117,8 +103,7 @@ public class OrderListActivity extends Activity {
 
         ApiClient.executor().execute(() -> {
             try {
-                // Two reads: the product catalogue (for names) and this
-                // customer's orders. Both come through the REST API.
+                //products are fetched too so orders can show a name instead of just an id
                 String productsBody = ApiClient.get("/products");
                 String ordersBody = ApiClient.get("/customers/" + customerId + "/orders");
 
@@ -198,7 +183,7 @@ public class OrderListActivity extends Activity {
         return "Status: " + order.status + "\nDeliver to: " + destination;
     }
 
-    /** Simple adapter over the loaded orders, one row per order. */
+    //shows one row per order
     private final class OrderAdapter extends BaseAdapter {
 
         @Override

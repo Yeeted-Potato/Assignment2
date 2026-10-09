@@ -18,16 +18,7 @@ import nz.ac.aut.comp713.customerorders.api.ApiClient;
 import nz.ac.aut.comp713.customerorders.api.ApiException;
 import nz.ac.aut.comp713.customerorders.model.Customer;
 
-/**
- * Screen 1 of 3: the customer signs in using the name and email on their
- * account. This makes a real POST /customer-login call and is the entry point
- * of the shared customer workflow.
- *
- * Failures are split three ways on purpose:
- *   - HTTP 401  -> "no customer matches", the user can correct the details
- *   - IOException -> the API could not be reached, retrying is worthwhile
- *   - anything else -> an unexpected problem
- */
+//screen 1: the customer signs in with their name and email
 public class MainActivity extends Activity {
 
     private static final String STATE_NAME = "state_name";
@@ -51,8 +42,7 @@ public class MainActivity extends Activity {
         progress = findViewById(R.id.progress);
         statusView = findViewById(R.id.statusView);
 
-        // Rotation recreates the Activity; keep whatever the user had typed and
-        // any error message rather than dropping them (Week 8 lifecycle state).
+        //keep what was typed and any error message across rotation
         if (savedInstanceState != null) {
             nameInput.setText(savedInstanceState.getString(STATE_NAME, ""));
             emailInput.setText(savedInstanceState.getString(STATE_EMAIL, ""));
@@ -81,7 +71,7 @@ public class MainActivity extends Activity {
 
         setLoading(true);
 
-        // Week 9: the network call must never run on the UI thread.
+        //network calls must not run on the UI thread
         ApiClient.executor().execute(() -> {
             try {
                 JSONObject request = new JSONObject();
@@ -103,6 +93,7 @@ public class MainActivity extends Activity {
                     finish();
                 });
             } catch (ApiException e) {
+                //401 means the login details did not match an account
                 final String message = e.getStatusCode() == 401
                         ? getString(R.string.login_unknown)
                         : e.getMessage();

@@ -4,11 +4,7 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-/**
- * A non-2xx response from the REST API. Carries the HTTP status code plus a
- * human readable message taken from the server's error body, so the screen can
- * show the difference between "no such customer" and "the server is down".
- */
+//an error response from the api, keeps the status code and the server's message
 public class ApiException extends Exception {
 
     private final int statusCode;
@@ -22,11 +18,7 @@ public class ApiException extends Exception {
         return statusCode;
     }
 
-    /**
-     * FastAPI returns {"detail": "..."} for most errors, and
-     * {"detail": [{"msg": "...", ...}]} for request validation errors.
-     * Both shapes are unwrapped so the user sees the real reason.
-     */
+    //fastapi sends {"detail": "..."} or {"detail": [{"msg": "..."}]} for validation errors
     private static String extractMessage(String body, int statusCode) {
         if (body == null || body.trim().isEmpty()) {
             return "The server returned an error (HTTP " + statusCode + ").";
