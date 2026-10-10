@@ -1,0 +1,8 @@
+<resources>
+    <style name="Theme.CustomerOrders" parent="android:Theme.Material.Light.DarkActionBar">
+        <item name="android:colorPrimary">@color/primary</item>
+        <item name="android:colorPrimaryDark">@color/primary_dark</item>
+        <item name="android:colorAccent">@color/accent</item>
+        <item name="android:windowBackground">@android:color/white</item>
+    </style>
+</resources>

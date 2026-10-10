@@ -22,15 +22,14 @@
     </style>
 </head>
 <body>
-    <h1>Customer Orders System</h1>
+    <h1>Customer Orders System (STAFF)</h1>
 
     <!-- navigation links styled as buttons, in a row -->
     <div>
-        <a href="create-customer.html" class="nav-button">Create Customer</a>
-        <a href="load-customers.html" class="nav-button">View Customers</a>
-        <a href="create-order.html" class="nav-button">Create Order</a>
-        <a href="view-orders.html" class="nav-button">View Orders</a>
-        <a href="update-status.html" class="nav-button">Update Status</a>
+        <a href="/static/create-customer.html" class="nav-button">Create Customer</a>
+        <a href="/static/load-customers.html" class="nav-button">View Customers</a>
+        <a href="/static/view-orders.html" class="nav-button">View Orders</a>
+        <a href="/static/update-status.html" class="nav-button">Update Status</a>
     </div>
 
     <h2>View a customer's orders</h2>
@@ -38,33 +37,44 @@
     <button onclick="viewOrders()">View orders</button>
     <pre id="output"></pre>
 
-    <script>
-        async function viewOrders() {
-            const customerId = document.getElementById("customerId").value;
+<script>
+    async function viewOrders() {
+        const customerId = document.getElementById("customerId").value;
 
-            const response = await fetch("/customers/" + customerId + "/orders");
-            const data = await response.json();
+        const response = await fetch("/customers/" + customerId + "/orders");
+        const data = await response.json();
 
-            if (!response.ok) {
-                document.getElementById("output").textContent =
-                    "Error: " + JSON.stringify(data.detail);
-            } else if (data.length === 0) {
-                document.getElementById("output").textContent =
-                    "No orders for this customer";
-            } else {
-            // build a readable line per order instead of raw JSON
-                let text = "";
-                for (const order of data) {
+        if (!response.ok) {
+            document.getElementById("output").textContent =
+                "Error: " + JSON.stringify(data.detail);
+        } else if (data.length === 0) {
+            document.getElementById("output").textContent =
+                "No orders for this customer";
+        } else {
+            const productsResponse = await fetch("/products");
+            const products = await productsResponse.json();
+
+            let text = "";
+
+            for (const order of data) {
+                const product = products.find(p => p.id === order.product_id);
+
+                const productName = product
+                    ? product.name
+                    : "Unknown product";
+
                 text += "Order ID: " + order.id
-                + ", Product: " + order.product
-                + ", Quantity: " + order.quantity
-                + ", Status: " + order.status
-                + ", Customer ID: " + order.customer_id
-                + "\n";
-                }
-                document.getElementById("output").textContent = text;
+                    + ", Product: " + productName
+                    + " (ID: " + order.product_id + ")"
+                    + ", Quantity: " + order.quantity
+                    + ", Status: " + order.status
+                    + ", Customer ID: " + order.customer_id
+                    + "\n";
             }
-}
-    </script>
+
+            document.getElementById("output").textContent = text;
+        }
+    }
+</script>
 </body>
 </html>

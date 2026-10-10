@@ -1,0 +1,53 @@
+<resources>
+    <string name="app_name">Customer Orders</string>
+
+    <!-- shared messages -->
+    <string name="error_network">Could not reach the server. Check that the API is running, then try again.</string>
+    <string name="error_unexpected">Something went wrong. Please try again.</string>
+    <string name="loading">Loading…</string>
+    <string name="retry">Retry</string>
+
+    <!-- screen 1: sign in -->
+    <string name="login_title">Customer sign in</string>
+    <string name="login_intro">Sign in with the name and email on your customer account.</string>
+    <string name="login_name_hint">Name</string>
+    <string name="login_email_hint">Email</string>
+    <string name="login_button">Sign in</string>
+    <string name="login_missing_details">Enter both a name and an email.</string>
+    <string name="login_unknown">No customer matches that name and email.</string>
+
+    <!-- screen 2: order list -->
+    <string name="orders_title">My orders</string>
+    <string name="orders_signed_in_as">Signed in as %1$s</string>
+    <string name="orders_empty">You have no orders yet. Tap “New order” to place one.</string>
+    <string name="orders_new">New order</string>
+    <string name="orders_refresh">Refresh</string>
+
+    <!-- screen 3: create order -->
+    <string name="create_title">New order</string>
+    <string name="create_product_label">Product</string>
+    <string name="create_products_empty">No products available yet.</string>
+    <string name="create_quantity_label">Quantity</string>
+    <string name="create_quantity_hint">1</string>
+    <string name="create_delivery_heading">Delivery</string>
+    <string name="create_delivery_explain">Use your current location, or type a delivery address. At least one is required.</string>
+    <string name="create_use_location">Use my location</string>
+    <string name="create_address_hint">Delivery address (type this instead if location is unavailable)</string>
+    <string name="create_submit">Place order</string>
+    <string name="create_missing_delivery">Give a delivery address, or tap “Use my location”.</string>
+    <string name="create_bad_quantity">Enter a quantity of 1 or more.</string>
+    <string name="create_no_product">Choose a product first.</string>
+    <string name="create_placed">Order placed. It is now waiting for staff to confirm it.</string>
+
+    <!-- location states, one message for each reason a fix can fail -->
+    <string name="location_idle">No location captured yet.</string>
+    <string name="location_requesting">Getting your location…</string>
+    <string name="location_permission_needed">Location permission is needed to use your position. You can type an address instead.</string>
+    <string name="location_permission_denied">Location permission was declined. Type a delivery address instead.</string>
+    <string name="location_services_off">Location services are turned off. Turn them on, or type a delivery address instead.</string>
+    <string name="location_timeout">No location fix arrived in time. Try again, or type a delivery address instead.</string>
+    <string name="location_unavailable">No location is available right now. Type a delivery address instead.</string>
+    <string name="location_stale">Only an old location was found, so it was not used. Try again, or type an address.</string>
+    <string name="location_captured">Using your location:\n%1$s, %2$s (±%3$.0f m)</string>
+    <string name="location_captured_address">Using your location: %1$s, %2$s</string>
+</resources>
