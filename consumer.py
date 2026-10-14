@@ -20,6 +20,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger("orders-consumer")
 CUSTOMER_SERVICE_URL = os.getenv("CUSTOMER_SERVICE_URL", "http://127.0.0.1:8000")
+STAFF_SERVICE_URL = os.getenv("STAFF_SERVICE_URL", "http://127.0.0.1:8001")
 INTERNAL_EVENT_TOKEN = os.getenv("INTERNAL_EVENT_TOKEN", "local-development-token")
 
 Base.metadata.create_all(bind=engine)
@@ -49,6 +50,38 @@ def persist_notification(db, event: dict):
         customer_id=customer_id,
         order_id=order_id,
         message=f"Order {order_id} status changed to {new_status}",
+    )
+    db.add(notification)
+    db.commit()
+    db.refresh(notification)
+    return notification
+
+
+def persist_staff_notification(db, event: dict):
+    if event.get("event_type") != "order.created":
+        raise ValueError("Unsupported staff notification event type")
+    payload = event.get("payload")
+    event_id = event.get("event_id")
+    if not isinstance(payload, dict) or not isinstance(event_id, str):
+        raise ValueError("Event is missing a payload or event_id")
+    order_id = payload.get("order_id")
+    if not isinstance(order_id, int):
+        raise ValueError("Event is missing a valid order_id")
+
+    notification = db.query(models.StaffNotification).filter(
+        models.StaffNotification.event_id == event_id
+    ).first()
+    if notification is not None:
+        return notification
+
+    customer_name = payload.get("customer_name", "A customer")
+    product_name = payload.get("product_name", "a product")
+    quantity = payload.get("quantity")
+    notification = models.StaffNotification(
+        event_id=event_id,
+        order_id=order_id,
+        message=f"New order #{order_id} from {customer_name}: "
+        f"{quantity} x {product_name}",
     )
     db.add(notification)
     db.commit()
@@ -110,7 +143,14 @@ def consume_events(channel):
                 raise ValueError("Event message must be a JSON object")
             db = SessionLocal()
             try:
-                notification = persist_notification(db, event)
+                if event.get("event_type") == "order.created":
+                    notification = persist_staff_notification(db, event)
+                    callback_url = f"{STAFF_SERVICE_URL}/internal/events"
+                    callback_service = "staff"
+                else:
+                    notification = persist_notification(db, event)
+                    callback_url = f"{CUSTOMER_SERVICE_URL}/internal/events"
+                    callback_service = "customer"
             finally:
                 db.close()
         except (UnicodeDecodeError, json.JSONDecodeError, ValueError, SQLAlchemyError):
@@ -120,7 +160,7 @@ def consume_events(channel):
 
         try:
             response = httpx.post(
-                f"{CUSTOMER_SERVICE_URL}/internal/events",
+                callback_url,
                 json=event,
                 headers={"X-Internal-Token": INTERNAL_EVENT_TOKEN},
                 timeout=3.0,
@@ -128,7 +168,8 @@ def consume_events(channel):
             response.raise_for_status()
         except httpx.HTTPError:
             logger.exception(
-                "Customer service callback failed for event %s; requeueing",
+                "%s service callback failed for event %s; requeueing",
+                callback_service,
                 event.get("event_id"),
             )
             time.sleep(1)

@@ -3,7 +3,24 @@
 <head>
     <title>Customer Orders - Home</title>
     <style>
-        /* style links to look like buttons */
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            color: #1f2937;
+        }
+        header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 20px;
+            padding: 16px 24px;
+            color: white;
+            background: #1f2937;
+        }
+        header h1 {
+            margin: 0;
+            font-size: 1.5rem;
+        }
         .nav-button {
             display: inline-block;
             padding: 12px 20px;
@@ -17,20 +34,130 @@
         .nav-button:hover {
             background-color: #1d4ed8;
         }
+        .header-button {
+            background: #4b5563;
+            white-space: nowrap;
+        }
+        .header-button:hover {
+            background: #6b7280;
+        }
+        main {
+            padding: 20px 24px;
+        }
+        #notificationStatus {
+            color: #4b5563;
+        }
+        #notificationList li {
+            padding: 8px 0;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        @media (max-width: 600px) {
+            header {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+        }
     </style>
 </head>
 <body>
-    <h1>Customer Orders System (STAFF)</h1>
-    <p>Choose an action:</p>
-
-    <!-- navigation links styled as buttons, in a row -->
-    <div>
-        <a href="http://localhost:8000/" class="nav-button">Customer Client</a>
+    <header>
+        <h1>Customer Orders System (STAFF)</h1>
+        <a id="customerClientLink" href="#" class="nav-button header-button">Customer Client</a>
+    </header>
+    <main>
+        <p>Choose an action:</p>
+        <nav>
         <a href="/static/create-customer.html" class="nav-button">Create Customer</a>
         <a href="/static/load-customers.html" class="nav-button">View Customers</a>
-       
         <a href="/static/view-orders.html" class="nav-button">View Orders</a>
         <a href="/static/update-status.html" class="nav-button">Update Status</a>
-    </div>
+        </nav>
+
+        <section aria-labelledby="notificationsHeading">
+            <h2 id="notificationsHeading">New order notifications</h2>
+            <p id="notificationStatus" role="status">Connecting to live order notifications...</p>
+            <ul id="notificationList" aria-live="polite"></ul>
+        </section>
+    </main>
+    <script>
+        const staffApi = window.location.protocol + "//" +
+            window.location.hostname + ":8001";
+        const customerClientLink = document.getElementById("customerClientLink");
+        customerClientLink.href = window.location.protocol + "//" +
+            window.location.hostname + ":8000/";
+
+        const notificationList = document.getElementById("notificationList");
+        const notificationStatus = document.getElementById("notificationStatus");
+        let notificationSocket;
+        let reconnectDelay = 1000;
+        let reconnectTimer;
+
+        function addNotification(message, timestamp, atTop) {
+            const item = document.createElement("li");
+            item.textContent = timestamp
+                ? new Date(timestamp).toLocaleString() + " — " + message
+                : message;
+            if (atTop) {
+                notificationList.prepend(item);
+            } else {
+                notificationList.appendChild(item);
+            }
+        }
+
+        async function loadNotifications() {
+            try {
+                const response = await fetch(staffApi + "/staff/notifications");
+                if (!response.ok) {
+                    throw new Error("Staff API returned " + response.status);
+                }
+                const notifications = await response.json();
+                notificationList.replaceChildren();
+                for (const notification of notifications) {
+                    addNotification(notification.message, notification.created_at, false);
+                }
+            } catch (error) {
+                notificationStatus.textContent =
+                    "Could not load saved notifications. Live reconnect will retry.";
+            }
+        }
+
+        function connectNotifications() {
+            const scheme = window.location.protocol === "https:" ? "wss:" : "ws:";
+            notificationSocket = new WebSocket(
+                scheme + "//" + window.location.host + "/ws/staff/orders"
+            );
+            notificationStatus.textContent = "Connecting to live order notifications...";
+
+            notificationSocket.onopen = function() {
+                reconnectDelay = 1000;
+                notificationStatus.textContent = "Live order notifications connected.";
+                loadNotifications();
+            };
+            notificationSocket.onmessage = function(message) {
+                const event = JSON.parse(message.data);
+                if (event.event_type === "order.created") {
+                    const order = event.payload;
+                    const description = "New order #" + order.order_id +
+                        " from " + order.customer_name + ": " +
+                        order.quantity + " x " + order.product_name;
+                    addNotification(description, new Date().toISOString(), true);
+                    notificationStatus.textContent = "A new order was just placed.";
+                    loadNotifications();
+                }
+            };
+            notificationSocket.onclose = function() {
+                notificationStatus.textContent =
+                    "Live connection lost. Reconnecting and restoring notifications...";
+                clearTimeout(reconnectTimer);
+                reconnectTimer = setTimeout(connectNotifications, reconnectDelay);
+                reconnectDelay = Math.min(reconnectDelay * 2, 15000);
+            };
+            notificationSocket.onerror = function() {
+                notificationSocket.close();
+            };
+        }
+
+        connectNotifications();
+    </script>
 </body>
 </html>

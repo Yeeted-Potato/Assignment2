@@ -1,10 +1,11 @@
 import json
+import hmac
 import logging
 import os
 import uuid
 from datetime import datetime, timezone
 
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, Header, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -18,6 +19,7 @@ from schemas import CustomerCreate, OrderStatusUpdate, StaffLogin
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+INTERNAL_EVENT_TOKEN = os.getenv("INTERNAL_EVENT_TOKEN", "local-development-token")
 
 ALLOWED_TRANSITIONS = {
     "pending": {"paid"},
@@ -36,6 +38,31 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+class StaffConnections:
+    def __init__(self):
+        self.connections: set[WebSocket] = set()
+
+    async def connect(self, websocket: WebSocket):
+        await websocket.accept()
+        self.connections.add(websocket)
+
+    def disconnect(self, websocket: WebSocket):
+        self.connections.discard(websocket)
+
+    async def broadcast(self, event: dict):
+        disconnected = []
+        for websocket in self.connections:
+            try:
+                await websocket.send_json(event)
+            except (WebSocketDisconnect, RuntimeError):
+                disconnected.append(websocket)
+        for websocket in disconnected:
+            self.disconnect(websocket)
+
+
+staff_connections = StaffConnections()
 
 
 @app.get("/health")
@@ -100,6 +127,44 @@ def list_staff_orders(db: Session = Depends(get_db)):
         item["product_name"] = products.get(order.product_id, "Unknown product")
         result.append(item)
     return result
+
+
+@app.get("/staff/notifications")
+def list_staff_notifications(db: Session = Depends(get_db)):
+    return (
+        db.query(models.StaffNotification)
+        .order_by(models.StaffNotification.id.desc())
+        .limit(50)
+        .all()
+    )
+
+
+@app.websocket("/ws/staff/orders")
+async def staff_order_updates(websocket: WebSocket):
+    await staff_connections.connect(websocket)
+    try:
+        while True:
+            message = await websocket.receive_text()
+            if message == "ping":
+                await websocket.send_text("pong")
+    except WebSocketDisconnect:
+        staff_connections.disconnect(websocket)
+
+
+@app.post("/internal/events")
+async def deliver_internal_event(
+    event: dict,
+    x_internal_token: str | None = Header(default=None, alias="X-Internal-Token"),
+):
+    if not x_internal_token or not hmac.compare_digest(x_internal_token, INTERNAL_EVENT_TOKEN):
+        raise HTTPException(status_code=401, detail="Invalid internal event token")
+    if event.get("event_type") != "order.created":
+        raise HTTPException(status_code=422, detail="Unsupported staff event type")
+    payload = event.get("payload")
+    if not isinstance(payload, dict) or not isinstance(payload.get("order_id"), int):
+        raise HTTPException(status_code=422, detail="Event is missing a valid order_id")
+    await staff_connections.broadcast(event)
+    return {"delivered": True}
 
 
 @app.patch("/staff/orders/{order_id}")

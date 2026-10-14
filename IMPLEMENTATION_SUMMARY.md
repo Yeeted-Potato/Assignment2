@@ -15,14 +15,16 @@ Implemented the requested Assessment 3 **Path B (RabbitMQ message broker)** inte
 
 - Staff order status changes and their `order.status_changed` domain event are committed together to a transactional outbox.
 - The staff API attempts immediate publish to the durable RabbitMQ `orders.events` queue with publisher confirms. When RabbitMQ is unavailable, it reports `event_delivery: "pending"` and leaves the event available for retry.
-- `consumer.py` is a separate process. It relays unpublished outbox entries, consumes messages with manual acknowledgement, stores customer notifications idempotently by event ID, and retries the customer-service callback on delivery failure.
+- `consumer.py` is a separate process. It relays unpublished outbox entries, consumes messages with manual acknowledgement, persists customer status notifications and staff new-order notifications idempotently by event ID, and retries the appropriate service callback on delivery failure.
 - Malformed messages are routed to `orders.events.dead`.
-- The consumer callback broadcasts an event to the affected customer's WebSocket connections. The web UI reconnects automatically and reloads orders and notifications on reconnect.
+- A new `order.created` event is written to the outbox in the same transaction as the order. The consumer saves it as a staff notification and broadcasts it to open staff dashboards over `/ws/staff/orders`.
+- The consumer also broadcasts status-change events to the affected customer's WebSocket connections. Both web clients reconnect and reload persisted data on reconnect.
 
 ## Clients and compatibility
 
 - The existing Android customer API routes and order response fields are retained; the Android client remains on port 8000.
 - Staff pages are served by port 8001 and use staff-prefixed routes for staff-side customer/order views and status updates.
+- The staff home page has a header-level Customer Client button leading to the customer login page, plus a live/recoverable new-order notification list.
 - Customer-side order validation continues to require an address or device coordinates; partial/out-of-range coordinates are rejected.
 
 ## Running and configuration
@@ -41,12 +43,13 @@ Automated service tests are in `test_services.py` and check:
 4. Staff status transitions persist and write an outbox event.
 5. Invalid status transitions are rejected.
 6. Broker-unavailable status updates report pending delivery.
-7. Repeated event processing produces one notification.
-8. Customer and staff APIs expose distinct route responsibilities.
+7. Repeated event processing produces one notification per event ID.
+8. A newly created order writes an `order.created` outbox event and appears in the staff WebSocket/notification workflow.
+9. Customer and staff APIs expose distinct route responsibilities.
 
 `scripts/measure_response_time.py` supplies a measurable local API response-time check with a 250 ms p95 target. Results should be recorded from the target machine during the final demonstration/report; response time varies by machine and deployment.
 
-Validation in this workspace ran 30 sequential loopback `GET /products` requests: mean 17.80 ms and p95 27.31 ms (target p95 < 250 ms, pass). Four focused pytest tests passed using a temporary SQLite database, including the WebSocket callback. Docker Compose syntax validated, but a live Docker/RabbitMQ run could not be performed because the Docker engine was unavailable.
+Validation in this workspace ran 30 sequential loopback `GET /products` requests: mean 17.80 ms and p95 27.31 ms (target p95 < 250 ms, pass). Five focused pytest tests passed using a temporary SQLite database, including staff notification persistence and both WebSocket callbacks. Docker Compose syntax validated; a live Docker/RabbitMQ run should be repeated after this update.
 
 ## Limitations
 

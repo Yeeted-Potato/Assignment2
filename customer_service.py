@@ -1,6 +1,8 @@
 import hmac
+import json
 import logging
 import os
+import uuid
 from collections import defaultdict
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request, WebSocket, WebSocketDisconnect
@@ -127,6 +129,23 @@ def create_order(customer_id: int, order: OrderCreate, db: Session = Depends(get
     product.stock -= order.quantity
     db.flush()
     db.add(models.OrderStatusHistory(order_id=new_order.id, old_status=None, new_status="pending"))
+    event_id = str(uuid.uuid4())
+    event_payload = {
+        "order_id": new_order.id,
+        "customer_id": customer.id,
+        "customer_name": customer.name,
+        "product_id": product.id,
+        "product_name": product.name,
+        "quantity": new_order.quantity,
+        "status": new_order.status,
+    }
+    db.add(
+        models.DomainEventOutbox(
+            id=event_id,
+            event_type="order.created",
+            payload=json.dumps(event_payload),
+        )
+    )
     db.commit()
     db.refresh(new_order)
     return new_order

@@ -26,7 +26,7 @@ Staff web client -> Staff service :8001   Customer WebSocket connections
 
 The customer service owns customer login, product lookup, order creation/listing, and customer notifications. The staff service owns staff login, customer/order administration views, and order status transitions. They are independent FastAPI processes but intentionally share the existing SQLite database so both roles see the same orders. The staff service writes a status change and a domain event to a transactional outbox in one database transaction. It publishes the event with RabbitMQ publisher confirms. If RabbitMQ is unavailable, the API reports `event_delivery: "pending"` and the separately running consumer retries unpublished outbox entries. The durable queue uses manual acknowledgements; the consumer persists notifications idempotently by event ID and only acknowledges after the customer-service callback succeeds. Failed callbacks are requeued; malformed events are sent to a durable dead-letter queue.
 
-The consumer calls the customer service's internal event endpoint, which broadcasts `order.status_changed` over WebSockets to the affected customer's open browser. The browser reloads persisted orders and notifications after connecting and after reconnecting, so it recovers current state without polling.
+Both order creation and order status changes create outbox events. For a newly created order, the consumer saves a staff notification and calls the staff service, which broadcasts `order.created` to connected staff browsers. The staff home page at port 8001 shows saved notifications and displays new orders live; it reconnects and restores saved notifications after a connection loss. For a status change, the consumer saves the customer notification and sends the event to the customer service, which broadcasts `order.status_changed` to the relevant customer's open browser. The customer page reloads persisted orders and notifications after connecting and reconnecting.
 
 ## Prerequisites
 
@@ -111,8 +111,9 @@ To demonstrate the shared workflow:
 
 1. Sign in as Evan at `http://localhost:8000/`, create an order, then open **View Orders** and leave the page open. It connects to `/ws/customers/{customer_id}/orders`.
 2. Sign in to staff at `http://localhost:8001/`, open **Update Status**, and advance Evan's order from `pending` to `paid`.
-3. The customer page displays the live status update without a refresh. The consumer also saves a notification that can be read from `GET /customers/{customer_id}/notifications`.
-4. To demonstrate recovery, temporarily stop the customer service or RabbitMQ container. A status event remains in the outbox or is requeued; restore the component and confirm that the customer page reconnects and reloads persisted order state.
+3. When Evan places the order, the staff home page displays a live notification without refresh. The notification is also saved and can be read from `GET /staff/notifications`.
+4. Leave the customer order page open, then advance Evan's order from `pending` to `paid` on the staff page. The customer page displays the live status update without refresh; the consumer saves a customer notification available from `GET /customers/{customer_id}/notifications`.
+5. To demonstrate recovery, temporarily stop the staff/customer service or RabbitMQ container. An order event remains in the outbox or is requeued; restore the component and confirm that the staff page reconnects and reloads saved notifications.
 
 The status workflow is `pending -> paid -> shipped -> delivered`. Orders require either a typed delivery address or both latitude and longitude; the Android client continues to submit device location with manual-address fallback.
 
@@ -121,7 +122,7 @@ The status workflow is `pending -> paid -> shipped -> delivered`. Orders require
 | Service | Port | Main routes |
 | --- | ---: | --- |
 | Customer service | 8000 | `GET /health`, `POST /customer-login`, `GET /customers`, `POST /customers`, `GET /customers/{id}`, `GET /products`, `POST /customers/{id}/orders`, `GET /customers/{id}/orders`, `GET /customers/{id}/notifications`, `WS /ws/customers/{id}/orders` |
-| Staff service | 8001 | `GET /health`, `POST /staff-login`, `GET/POST /staff/customers`, `GET /staff/products`, `GET /staff/orders`, `GET /staff/customers/{id}/orders`, `PATCH /staff/orders/{id}` |
+| Staff service | 8001 | `GET /health`, `POST /staff-login`, `GET/POST /staff/customers`, `GET /staff/products`, `GET /staff/orders`, `GET /staff/notifications`, `GET /staff/customers/{id}/orders`, `PATCH /staff/orders/{id}`, `WS /ws/staff/orders` |
 | RabbitMQ | 5672 | Durable queue `orders.events`; malformed events go to `orders.events.dead` |
 | RabbitMQ management | 15672 | Local development UI |
 
@@ -169,6 +170,7 @@ For an Android emulator, the app uses `10.0.2.2:8000` to reach the host customer
 | `ORDERS_QUEUE` | `orders.events` | Durable order-event queue. |
 | `ORDERS_DEAD_LETTER_QUEUE` | `orders.events.dead` | Dead-letter destination for malformed messages. |
 | `CUSTOMER_SERVICE_URL` | `http://127.0.0.1:8000` | Customer API base URL used by the consumer callback. |
+| `STAFF_SERVICE_URL` | `http://127.0.0.1:8001` | Staff API base URL used by the consumer for new-order notifications. |
 | `INTERNAL_EVENT_TOKEN` | `local-development-token` | Shared token for the consumer-to-customer internal callback. Change outside local demos. |
 | `WEB_ORIGINS` | Localhost ports 8000 and 8001 | Comma-separated browser origins permitted by each API. |
 | `STAFF_PASSWORD` | `dummypw` | Demo staff password checked by the staff login endpoint. |

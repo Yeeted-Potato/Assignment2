@@ -77,6 +77,16 @@ class Notification(Base):
     created_at = Column(DateTime, server_default=func.now())
 
 
+class StaffNotification(Base):
+    __tablename__ = "staff_notifications"
+
+    id = Column(Integer, primary_key=True, index=True)
+    event_id = Column(String, nullable=False, unique=True)
+    order_id = Column(Integer, ForeignKey("orders.id"), nullable=False)
+    message = Column(String, nullable=False)
+    created_at = Column(DateTime, server_default=func.now())
+
+
 class DomainEventOutbox(Base):
     __tablename__ = "domain_event_outbox"
 

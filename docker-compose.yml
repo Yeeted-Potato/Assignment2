@@ -57,9 +57,6 @@ services:
   consumer:
     build: .
     command: ["python", "consumer.py"]
-    environment:
-      <<: *service-environment
-      CUSTOMER_SERVICE_URL: http://customer-service:8000
     volumes:
       - orders_data:/app/data
     depends_on:
@@ -67,6 +64,12 @@ services:
         condition: service_healthy
       customer-service:
         condition: service_healthy
+      staff-service:
+        condition: service_healthy
+    environment:
+      <<: *service-environment
+      CUSTOMER_SERVICE_URL: http://customer-service:8000
+      STAFF_SERVICE_URL: http://staff-service:8001
     restart: unless-stopped
 
 volumes:

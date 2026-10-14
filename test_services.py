@@ -77,6 +77,20 @@ def test_customer_order_and_staff_status_workflow(service_clients):
         )
     )
     order_id = created.json()["id"]
+    db = test_session()
+    try:
+        created_event = (
+            db.query(models.DomainEventOutbox)
+            .filter_by(event_type="order.created")
+            .one()
+        )
+        created_payload = json.loads(created_event.payload)
+        assert created_payload["order_id"] == order_id
+        assert created_payload["customer_name"] == "Evan"
+        assert created_payload["product_name"] == "Keyboard"
+        assert created_event.published_at is None
+    finally:
+        db.close()
 
     invalid = customer_client.post(
         f"/customers/{customer_id}/orders",
@@ -103,7 +117,11 @@ def test_customer_order_and_staff_status_workflow(service_clients):
     db = test_session()
     try:
         assert db.query(models.Product).filter_by(id=product_id).one().stock == 3
-        outbox = db.query(models.DomainEventOutbox).one()
+        outbox = (
+            db.query(models.DomainEventOutbox)
+            .filter_by(event_type="order.status_changed")
+            .one()
+        )
         assert outbox.published_at is None
         assert json.loads(outbox.payload)["new_status"] == "paid"
     finally:
@@ -159,9 +177,63 @@ def test_customer_websocket_receives_internal_order_event(service_clients):
         assert websocket.receive_json() == event
 
 
+def test_staff_order_notification_persists_once_and_broadcasts(service_clients):
+    customer_client, staff_client, test_session, customer_id, product_id = service_clients
+    created = customer_client.post(
+        f"/customers/{customer_id}/orders",
+        json={
+            "product_id": product_id,
+            "quantity": 1,
+            "delivery_address": "123 Queen Street",
+        },
+    )
+    assert created.status_code == 200
+    order_id = created.json()["id"]
+    event = {
+        "event_id": "staff-order-created-event",
+        "event_type": "order.created",
+        "payload": {
+            "order_id": order_id,
+            "customer_id": customer_id,
+            "customer_name": "Evan",
+            "product_id": product_id,
+            "product_name": "Keyboard",
+            "quantity": 1,
+            "status": "pending",
+        },
+    }
+
+    db = test_session()
+    try:
+        first = consumer.persist_staff_notification(db, event)
+        second = consumer.persist_staff_notification(db, event)
+        assert first.id == second.id
+        assert db.query(models.StaffNotification).count() == 1
+    finally:
+        db.close()
+
+    with staff_client.websocket_connect("/ws/staff/orders") as websocket:
+        rejected = staff_client.post("/internal/events", json=event)
+        assert rejected.status_code == 401
+        delivered = staff_client.post(
+            "/internal/events",
+            json=event,
+            headers={"X-Internal-Token": "local-development-token"},
+        )
+        assert delivered.status_code == 200
+        assert websocket.receive_json() == event
+
+    saved = staff_client.get("/staff/notifications")
+    assert saved.status_code == 200
+    assert saved.json()[0]["message"] == (
+        f"New order #{order_id} from Evan: 1 x Keyboard"
+    )
+
+
 def test_services_have_distinct_route_responsibilities():
     customer_paths = {route.path for route in customer_service.app.routes}
     staff_paths = {route.path for route in staff_service.app.routes}
     assert "/customers/{customer_id}/orders" in customer_paths
     assert "/staff/orders/{order_id}" in staff_paths
     assert "/staff/orders/{order_id}" not in customer_paths
+    assert "/ws/staff/orders" in staff_paths
