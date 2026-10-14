@@ -243,9 +243,6 @@
 
         <div id="ordersSection" class="section hidden">
             <h2>My Orders</h2>
-            <p id="liveConnectionStatus" role="status">Live updates connect after sign-in.</p>
-            <div id="notifications" aria-live="polite"></div>
-
             <div id="ordersList"></div>
         </div>
 
@@ -290,12 +287,14 @@
 
 <script>
 
-    let customerId = null;
+    const forceCustomerLogin =
+        new URLSearchParams(window.location.search).get("resume") !== "1";
+    if (forceCustomerLogin) {
+        localStorage.removeItem("customerId");
+    }
+    let customerId = Number(localStorage.getItem("customerId")) || null;
 
     let products = [];
-    let orderSocket = null;
-    let reconnectTimer = null;
-    let reconnectDelay = 1000;
 
     async function customerLogin() {
 
@@ -318,6 +317,10 @@
         if (response.ok) {
 
             customerId = data.id;
+            localStorage.setItem("customerId", String(data.id));
+            window.dispatchEvent(new CustomEvent("customer-login-live", {
+                detail: data
+            }));
 
             document.getElementById("loginSection").classList.add("hidden");
 
@@ -331,8 +334,6 @@
             document.getElementById("loginOutput").textContent = "";
 
             loadProducts();
-            loadNotifications();
-            connectOrderUpdates();
 
         } else {
 
@@ -362,6 +363,7 @@
         const productSelect =
             document.getElementById("productSelect");
 
+        const selectedProductId = productSelect.value;
         productSelect.innerHTML =
             '<option value="">Select a product</option>';
 
@@ -375,7 +377,6 @@
             const option = document.createElement("option");
 
             option.value = product.id;
-
             option.textContent =
                 product.name +
                 " - $" +
@@ -383,6 +384,10 @@
                 " (" +
                 product.stock +
                 " in stock)";
+            option.disabled = product.stock <= 0;
+            if (String(product.id) === selectedProductId && product.stock > 0) {
+                option.selected = true;
+            }
 
             productSelect.appendChild(option);
 
@@ -567,62 +572,6 @@
         }
     }
 
-    async function loadNotifications() {
-        const response = await fetch(
-            "/customers/" + customerId + "/notifications"
-        );
-        const data = await response.json();
-        const notifications = document.getElementById("notifications");
-        if (response.ok) {
-            notifications.textContent = data.length
-                ? "Latest notification: " + data[0].message
-                : "No order notifications yet.";
-        }
-    }
-
-    function connectOrderUpdates() {
-        if (!customerId) {
-            return;
-        }
-        if (orderSocket) {
-            orderSocket.close();
-        }
-        const scheme = window.location.protocol === "https:" ? "wss:" : "ws:";
-        orderSocket = new WebSocket(
-            scheme + "//" + window.location.host +
-            "/ws/customers/" + customerId + "/orders"
-        );
-        document.getElementById("liveConnectionStatus").textContent =
-            "Connecting to live order updates...";
-
-        orderSocket.onopen = function() {
-            reconnectDelay = 1000;
-            document.getElementById("liveConnectionStatus").textContent =
-                "Live updates connected.";
-            loadOrders();
-            loadNotifications();
-        };
-        orderSocket.onmessage = function(message) {
-            const event = JSON.parse(message.data);
-            document.getElementById("liveConnectionStatus").textContent =
-                "Order #" + event.payload.order_id +
-                " changed to " + event.payload.new_status + " (live update).";
-            loadOrders();
-            loadNotifications();
-        };
-        orderSocket.onclose = function() {
-            document.getElementById("liveConnectionStatus").textContent =
-                "Live updates disconnected. Reconnecting...";
-            clearTimeout(reconnectTimer);
-            reconnectTimer = setTimeout(connectOrderUpdates, reconnectDelay);
-            reconnectDelay = Math.min(reconnectDelay * 2, 15000);
-        };
-        orderSocket.onerror = function() {
-            orderSocket.close();
-        };
-    }
-
-
     function showStaffPopup() {
 
         document.getElementById("staffModal").style.display =
@@ -703,7 +652,21 @@
 
     };
 
+    window.addEventListener("order-created-live", function() {
+        loadProducts();
+    });
+    window.addEventListener("customer-order-status-live", function() {
+        loadOrders();
+    });
+    if (customerId) {
+        document.getElementById("loginSection").classList.add("hidden");
+        document.getElementById("customerSection").classList.remove("hidden");
+        document.getElementById("welcomeMessage").textContent = "Welcome back";
+        loadProducts();
+    }
+
 </script>
+<script src="/static/live-notifications.js" data-role="customer"></script>
 
 </body>
 </html>

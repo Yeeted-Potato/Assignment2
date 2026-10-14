@@ -1,34 +1,22 @@
-import json
 import hmac
 import logging
 import os
-import uuid
-from datetime import datetime, timezone
 
+import httpx
 from fastapi import Depends, FastAPI, Header, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-from sqlalchemy.orm import Session
-
 import models
-from broker import publish_order_event
-from database import Base, engine, get_db
 from schemas import CustomerCreate, OrderStatusUpdate, StaffLogin
+from staff_database import get_staff_db, initialize_staff_database
 
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 INTERNAL_EVENT_TOKEN = os.getenv("INTERNAL_EVENT_TOKEN", "local-development-token")
-
-ALLOWED_TRANSITIONS = {
-    "pending": {"paid"},
-    "paid": {"shipped"},
-    "shipped": {"delivered"},
-    "delivered": set(),
-}
-
-Base.metadata.create_all(bind=engine)
+CUSTOMER_SERVICE_URL = os.getenv("CUSTOMER_SERVICE_URL", "http://127.0.0.1:8000")
+initialize_staff_database()
 app = FastAPI(title="Customer Orders - Staff Service")
 app.add_middleware(
     CORSMiddleware,
@@ -38,6 +26,31 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+def customer_service_request(method: str, path: str, body: dict | None = None):
+    try:
+        response = httpx.request(
+            method,
+            f"{CUSTOMER_SERVICE_URL}{path}",
+            json=body,
+            headers={"X-Internal-Token": INTERNAL_EVENT_TOKEN},
+            timeout=5.0,
+        )
+        response.raise_for_status()
+    except httpx.HTTPStatusError as exc:
+        try:
+            detail = exc.response.json().get("detail", exc.response.text)
+        except ValueError:
+            detail = exc.response.text
+        raise HTTPException(status_code=exc.response.status_code, detail=detail) from exc
+    except httpx.HTTPError as exc:
+        logger.exception("Customer service request failed: %s %s", method, path)
+        raise HTTPException(
+            status_code=503,
+            detail="Customer service is unavailable; please retry.",
+        ) from exc
+    return response.json()
 
 
 class StaffConnections:
@@ -71,7 +84,7 @@ def health():
 
 
 @app.post("/staff-login")
-def staff_login(staff: StaffLogin, db: Session = Depends(get_db)):
+def staff_login(staff: StaffLogin, db=Depends(get_staff_db)):
     if staff.password != os.getenv("STAFF_PASSWORD", "dummypw"):
         raise HTTPException(status_code=401, detail="Invalid password")
     existing = db.query(models.Staff).filter(models.Staff.email == staff.email).first()
@@ -81,56 +94,36 @@ def staff_login(staff: StaffLogin, db: Session = Depends(get_db)):
 
 
 @app.get("/staff/customers")
-def list_staff_customers(db: Session = Depends(get_db)):
-    return db.query(models.Customer).order_by(models.Customer.id).all()
+def list_staff_customers():
+    return customer_service_request("GET", "/internal/staff/customers")
 
 
 @app.post("/staff/customers")
-def create_staff_customer(customer: CustomerCreate, db: Session = Depends(get_db)):
-    existing = db.query(models.Customer).filter(models.Customer.email == customer.email).first()
-    if existing:
-        raise HTTPException(status_code=400, detail="Email already registered")
-    new_customer = models.Customer(name=customer.name, email=customer.email)
-    db.add(new_customer)
-    db.commit()
-    db.refresh(new_customer)
-    return new_customer
+def create_staff_customer(customer: CustomerCreate):
+    return customer_service_request(
+        "POST", "/internal/staff/customers", customer.model_dump()
+    )
 
 
 @app.get("/staff/products")
-def list_staff_products(db: Session = Depends(get_db)):
-    return db.query(models.Product).order_by(models.Product.id).all()
+def list_staff_products():
+    return customer_service_request("GET", "/internal/staff/products")
 
 
 @app.get("/staff/customers/{customer_id}/orders")
-def list_staff_customer_orders(customer_id: int, db: Session = Depends(get_db)):
-    customer = db.query(models.Customer).filter(models.Customer.id == customer_id).first()
-    if customer is None:
-        raise HTTPException(status_code=404, detail="Customer not found")
-    return (
-        db.query(models.Order)
-        .filter(models.Order.customer_id == customer_id)
-        .order_by(models.Order.id)
-        .all()
+def list_staff_customer_orders(customer_id: int):
+    return customer_service_request(
+        "GET", f"/internal/staff/customers/{customer_id}/orders"
     )
 
 
 @app.get("/staff/orders")
-def list_staff_orders(db: Session = Depends(get_db)):
-    orders = db.query(models.Order).order_by(models.Order.id.desc()).all()
-    customers = {c.id: c.name for c in db.query(models.Customer).all()}
-    products = {p.id: p.name for p in db.query(models.Product).all()}
-    result = []
-    for order in orders:
-        item = {column.name: getattr(order, column.name) for column in models.Order.__table__.columns}
-        item["customer_name"] = customers.get(order.customer_id, "Unknown customer")
-        item["product_name"] = products.get(order.product_id, "Unknown product")
-        result.append(item)
-    return result
+def list_staff_orders():
+    return customer_service_request("GET", "/internal/staff/orders")
 
 
 @app.get("/staff/notifications")
-def list_staff_notifications(db: Session = Depends(get_db)):
+def list_staff_notifications(db=Depends(get_staff_db)):
     return (
         db.query(models.StaffNotification)
         .order_by(models.StaffNotification.id.desc())
@@ -169,59 +162,13 @@ async def deliver_internal_event(
 
 @app.patch("/staff/orders/{order_id}")
 def update_order_status(
-    order_id: int, update: OrderStatusUpdate, db: Session = Depends(get_db)
+    order_id: int, update: OrderStatusUpdate
 ):
-    order = db.query(models.Order).filter(models.Order.id == order_id).first()
-    if order is None:
-        raise HTTPException(status_code=404, detail="Order not found")
-    current_status = order.status
-    if update.status not in ALLOWED_TRANSITIONS.get(current_status, set()):
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid status transition from {current_status} to {update.status}",
-        )
-
-    event_id = str(uuid.uuid4())
-    event_type = "order.status_changed"
-    payload = {
-        "customer_id": order.customer_id,
-        "order_id": order.id,
-        "old_status": current_status,
-        "new_status": update.status,
-    }
-    order.status = update.status
-    db.add(
-        models.OrderStatusHistory(
-            order_id=order.id,
-            old_status=current_status,
-            new_status=update.status,
-        )
+    return customer_service_request(
+        "PATCH",
+        f"/internal/staff/orders/{order_id}/status",
+        update.model_dump(),
     )
-    db.add(
-        models.DomainEventOutbox(
-            id=event_id,
-            event_type=event_type,
-            payload=json.dumps(payload),
-        )
-    )
-    db.commit()
-    db.refresh(order)
-
-    published = publish_order_event(event_id, event_type, payload)
-    if published:
-        outbox_event = db.query(models.DomainEventOutbox).filter(
-            models.DomainEventOutbox.id == event_id
-        ).first()
-        if outbox_event is not None:
-            outbox_event.published_at = datetime.now(timezone.utc)
-            db.commit()
-    else:
-        logger.info("Order event %s is queued for broker retry", event_id)
-
-    result = {column.name: getattr(order, column.name) for column in models.Order.__table__.columns}
-    result["event_delivery"] = "published" if published else "pending"
-    result["event_id"] = event_id
-    return result
 
 
 app.mount("/static", StaticFiles(directory="static"), name="static")

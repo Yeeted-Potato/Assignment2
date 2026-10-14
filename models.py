@@ -1,7 +1,7 @@
 #get the tools from the sqlalchemy library
 from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, ForeignKey, CheckConstraint, Text
 from sqlalchemy.sql import func
-from database import Base
+from base import Base
 
 #create class with table name customers and three columns for database
 class Customer(Base):
@@ -60,7 +60,7 @@ class OrderStatusHistory(Base):
     order_id = Column(Integer, ForeignKey("orders.id"), nullable=False)
     old_status = Column(String, nullable=True)
     new_status = Column(String, nullable=False)
-    changed_by_staff_id = Column(Integer, ForeignKey("staff.id"), nullable=True)
+    changed_by_staff_id = Column(Integer, nullable=True)
     changed_at = Column(DateTime, server_default=func.now())
     
 #create class for notifications the broker consumer saves for a customer
@@ -82,7 +82,7 @@ class StaffNotification(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     event_id = Column(String, nullable=False, unique=True)
-    order_id = Column(Integer, ForeignKey("orders.id"), nullable=False)
+    order_id = Column(Integer, nullable=False)
     message = Column(String, nullable=False)
     created_at = Column(DateTime, server_default=func.now())
 
@@ -95,3 +95,15 @@ class DomainEventOutbox(Base):
     payload = Column(Text, nullable=False)
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
     published_at = Column(DateTime, nullable=True)
+
+
+CUSTOMER_TABLES = [
+    Customer.__table__,
+    Product.__table__,
+    Order.__table__,
+    OrderStatusHistory.__table__,
+    Notification.__table__,
+    DomainEventOutbox.__table__,
+]
+
+STAFF_TABLES = [Staff.__table__, StaffNotification.__table__]

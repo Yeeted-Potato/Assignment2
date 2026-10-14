@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+from datetime import datetime, timezone
 
 import pika
 
@@ -27,16 +28,28 @@ def open_channel():
     return connection, channel
 
 
-def publish_order_event(event_id: str, event_type: str, payload: dict) -> bool:
+def publish_order_event(
+    event_id: str,
+    event_type: str,
+    payload: dict,
+    occurred_at: datetime | None = None,
+) -> bool:
     connection = None
     try:
         connection, channel = open_channel()
+        event = {
+            "event_id": event_id,
+            "event_type": event_type,
+            "payload": payload,
+        }
+        if occurred_at is not None:
+            if occurred_at.tzinfo is None:
+                occurred_at = occurred_at.replace(tzinfo=timezone.utc)
+            event["occurred_at"] = occurred_at.astimezone(timezone.utc).isoformat()
         return channel.basic_publish(
             exchange="",
             routing_key=ORDERS_QUEUE,
-            body=json.dumps(
-                {"event_id": event_id, "event_type": event_type, "payload": payload}
-            ),
+            body=json.dumps(event),
             properties=pika.BasicProperties(
                 content_type="application/json",
                 delivery_mode=pika.DeliveryMode.Persistent,

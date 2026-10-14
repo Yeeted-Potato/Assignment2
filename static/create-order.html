@@ -51,14 +51,19 @@
             const response = await fetch(customerApi + "/products");
             const products = await response.json();
             const select = document.getElementById("productSelect");
+            const selectedProductId = select.value;
             select.innerHTML = '<option value="">Select a product</option>';
             for (const product of products) {
                 const option = document.createElement("option");
                 option.value = product.id;
                 option.textContent = product.name + " (" + product.stock + " in stock)";
+                option.disabled = product.stock <= 0;
+                option.selected = String(product.id) === selectedProductId &&
+                    product.stock > 0;
                 select.appendChild(option);
             }
         }
+        window.addEventListener("order-created-live", loadProducts);
 
         async function createOrder() {
             const customerId = document.getElementById("orderCustomerId").value;
@@ -90,5 +95,6 @@
         }
         loadProducts();
     </script>
+    <script src="/static/live-notifications.js" data-role="customer"></script>
 </body>
 </html>

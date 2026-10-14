@@ -18,8 +18,9 @@ services:
   customer-service:
     build: .
     command: ["uvicorn", "customer_service:app", "--host", "0.0.0.0", "--port", "8000"]
-    environment: &service-environment
+    environment:
       DATABASE_URL: sqlite:////app/data/orders.db
+      STAFF_DATABASE_URL: sqlite:////app/data/staff.db
       RABBITMQ_URL: amqp://orders:orders-local-dev@rabbitmq:5672/%2F
       INTERNAL_EVENT_TOKEN: local-development-token
       WEB_ORIGINS: http://localhost:8000,http://127.0.0.1:8000,http://localhost:8001,http://127.0.0.1:8001
@@ -38,8 +39,11 @@ services:
     build: .
     command: ["uvicorn", "staff_service:app", "--host", "0.0.0.0", "--port", "8001"]
     environment:
-      <<: *service-environment
+      STAFF_DATABASE_URL: sqlite:////app/data/staff.db
+      CUSTOMER_SERVICE_URL: http://customer-service:8000
+      INTERNAL_EVENT_TOKEN: local-development-token
       STAFF_PASSWORD: dummypw
+      WEB_ORIGINS: http://localhost:8000,http://127.0.0.1:8000,http://localhost:8001,http://127.0.0.1:8001
     ports:
       - "8001:8001"
     volumes:
@@ -67,7 +71,10 @@ services:
       staff-service:
         condition: service_healthy
     environment:
-      <<: *service-environment
+      DATABASE_URL: sqlite:////app/data/orders.db
+      STAFF_DATABASE_URL: sqlite:////app/data/staff.db
+      RABBITMQ_URL: amqp://orders:orders-local-dev@rabbitmq:5672/%2F
+      INTERNAL_EVENT_TOKEN: local-development-token
       CUSTOMER_SERVICE_URL: http://customer-service:8000
       STAFF_SERVICE_URL: http://staff-service:8001
     restart: unless-stopped
