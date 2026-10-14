@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field
 from database import Base, engine, get_db
 from sqlalchemy.orm import Session
 import models
+from events import publish_order_event
 
 app = FastAPI()
 
@@ -137,6 +138,17 @@ def update_order_status(order_id: int, update: OrderStatusUpdate, db: Session = 
     db.add(models.OrderStatusHistory(order_id=order.id, old_status=current_status, new_status=new_status))
     db.commit()
     db.refresh(order)
+    
+    #tell the broker the status changed, only after the change is saved
+    publish_order_event({
+        "event_id": f"order-{order.id}-{new_status}",
+        "type": "order_status_changed",
+        "order_id": order.id,
+        "customer_id": order.customer_id,
+        "old_status": current_status,
+        "new_status": new_status,
+    })
+    
     return order
 
 #create a path to get all products from the database
