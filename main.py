@@ -118,6 +118,32 @@ def list_orders(customer_id: int, db: Session = Depends(get_db)):
     
     return db.query(models.Order).filter(models.Order.customer_id == customer_id).all()
 
+#get all notifications for a customer, newest first
+@app.get("/customers/{customer_id}/notifications")
+def list_notifications(customer_id: int, db: Session = Depends(get_db)):
+    customer = db.query(models.Customer).filter(models.Customer.id == customer_id).first()
+    if not customer:
+        raise HTTPException(status_code=404, detail="Customer not found")
+
+    return (
+        db.query(models.Notification)
+        .filter(models.Notification.customer_id == customer_id)
+        .order_by(models.Notification.id.desc())
+        .all()
+    )
+    
+#mark one notification as read
+@app.patch("/notifications/{notification_id}/read")
+def mark_notification_read(notification_id: int, db: Session = Depends(get_db)):
+    notification = db.query(models.Notification).filter(models.Notification.id == notification_id).first()
+    if not notification:
+        raise HTTPException(status_code=404, detail="Notification not found")
+
+    notification.is_read = True
+    db.commit()
+    db.refresh(notification)
+    return notification
+
 #update order status, match order id and check if the new status is allowed
 @app.patch("/orders/{order_id}")
 def update_order_status(order_id: int, update: OrderStatusUpdate, db: Session = Depends(get_db)):
