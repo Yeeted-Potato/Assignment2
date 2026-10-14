@@ -37,31 +37,58 @@
     <!-- form to create new order -->
     <h3>Add an order</h3>
     <input id = "orderCustomerId" placeholder="Your Customer ID">
-    <input id = "product" placeholder="Product">
-    <input id = "quantity" placeholder="Quantity">
+    <label for="productSelect">Product:</label>
+    <select id="productSelect"></select>
+    <input id="quantity" type="number" min="1" placeholder="Quantity">
+    <input id="deliveryAddress" placeholder="Delivery address">
     <button onclick="createOrder()">Create Order</button>
     <pre id="output"></pre>
     <script>
+        const customerApi = window.location.protocol + "//" +
+            window.location.hostname + ":8000";
+
+        async function loadProducts() {
+            const response = await fetch(customerApi + "/products");
+            const products = await response.json();
+            const select = document.getElementById("productSelect");
+            select.innerHTML = '<option value="">Select a product</option>';
+            for (const product of products) {
+                const option = document.createElement("option");
+                option.value = product.id;
+                option.textContent = product.name + " (" + product.stock + " in stock)";
+                select.appendChild(option);
+            }
+        }
+
         async function createOrder() {
             const customerId = document.getElementById("orderCustomerId").value;
-            const product = document.getElementById("product").value;
+            const productId = document.getElementById("productSelect").value;
             const quantity = document.getElementById("quantity").value;
+            const deliveryAddress = document.getElementById("deliveryAddress").value;
 
-            const response = await fetch('/customers/' + customerId + '/orders', {
+            const response = await fetch(customerApi + '/customers/' + customerId + '/orders', {
                 method: "POST",
                 headers: {"Content-Type": "application/json"},
-                body: JSON.stringify({product: product, quantity: parseInt(quantity)})
+                body: JSON.stringify({
+                    product_id: Number(productId),
+                    quantity: Number(quantity),
+                    delivery_address: deliveryAddress || null
+                })
             });
 
             const data = await response.json();
             if (response.ok) {
                 document.getElementById("output").textContent =
-                    "Order created: Customer ID " + data.customer_id + ", Product: " + data.product + ", Quantity: " + data.quantity + ", Order Status: " + data.status;
+                    "Order created: Customer ID " + data.customer_id +
+                    ", Product ID: " + data.product_id +
+                    ", Quantity: " + data.quantity +
+                    ", Order Status: " + data.status;
             } else {
                 document.getElementById("output").textContent =
                     "Error: " + JSON.stringify(data.detail);
 }
         }
+        loadProducts();
     </script>
 </body>
 </html>

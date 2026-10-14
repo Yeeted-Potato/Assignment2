@@ -1,5 +1,5 @@
 #get the tools from the sqlalchemy library
-from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, ForeignKey, CheckConstraint
+from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, ForeignKey, CheckConstraint, Text
 from sqlalchemy.sql import func
 from database import Base
 
@@ -75,3 +75,13 @@ class Notification(Base):
     message = Column(String, nullable=False)
     is_read = Column(Boolean, nullable=False, default=False)
     created_at = Column(DateTime, server_default=func.now())
+
+
+class DomainEventOutbox(Base):
+    __tablename__ = "domain_event_outbox"
+
+    id = Column(String, primary_key=True)
+    event_type = Column(String, nullable=False)
+    payload = Column(Text, nullable=False)
+    created_at = Column(DateTime, server_default=func.now(), nullable=False)
+    published_at = Column(DateTime, nullable=True)

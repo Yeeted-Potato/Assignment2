@@ -41,10 +41,12 @@
     
     <script>
         async function loadCustomers() {
-            const response = await fetch("/customers");
+            const response = await fetch("/staff/customers");
            const data = await response.json();
 
-        if (data.length === 0) {
+        if (!response.ok) {
+            document.getElementById("output").textContent = "Error loading customers";
+        } else if (data.length === 0) {
             document.getElementById("output").textContent = "No customers in the database";
         } else {
             document.getElementById("output").textContent = JSON.stringify(data, null, 2);

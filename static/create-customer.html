@@ -46,7 +46,7 @@
             const name = document.getElementById("name").value;
             const email = document.getElementById("email").value;
 
-            const response = await fetch("/customers", {
+            const response = await fetch("/staff/customers", {
                 method: "POST",
                 headers: {"Content-Type": "application/json"},
                 body: JSON.stringify({name: name, email: email})
