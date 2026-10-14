@@ -1,0 +1,15 @@
+#starts the RabbitMQ message broker used for order status events
+services:
+  rabbitmq:
+    image: rabbitmq:4.1-management
+    container_name: orders-rabbitmq
+    hostname: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+
+volumes:
+  rabbitmq-data:
+  
