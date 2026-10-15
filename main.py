@@ -133,7 +133,7 @@ def list_notifications(customer_id: int, db: Session = Depends(get_db)):
     )
     
 #mark one notification as read
-@app.patch("/notifications/{notification_id}/read")
+@app.post("/notifications/{notification_id}/read")
 def mark_notification_read(notification_id: int, db: Session = Depends(get_db)):
     notification = db.query(models.Notification).filter(models.Notification.id == notification_id).first()
     if not notification:
