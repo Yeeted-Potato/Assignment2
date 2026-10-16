@@ -41,7 +41,7 @@
     async function viewOrders() {
         const customerId = document.getElementById("customerId").value;
 
-        const response = await fetch("/customers/" + customerId + "/orders");
+        const response = await fetch("/staff/customers/" + customerId + "/orders");
         const data = await response.json();
 
         if (!response.ok) {
@@ -51,7 +51,7 @@
             document.getElementById("output").textContent =
                 "No orders for this customer";
         } else {
-            const productsResponse = await fetch("/products");
+            const productsResponse = await fetch("/staff/products");
             const products = await productsResponse.json();
 
             let text = "";
@@ -76,5 +76,6 @@
         }
     }
 </script>
+<script src="/static/live-notifications.js" data-role="staff"></script>
 </body>
 </html>

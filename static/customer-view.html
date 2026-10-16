@@ -243,7 +243,6 @@
 
         <div id="ordersSection" class="section hidden">
             <h2>My Orders</h2>
-
             <div id="ordersList"></div>
         </div>
 
@@ -288,7 +287,12 @@
 
 <script>
 
-    let customerId = null;
+    const forceCustomerLogin =
+        new URLSearchParams(window.location.search).get("resume") !== "1";
+    if (forceCustomerLogin) {
+        localStorage.removeItem("customerId");
+    }
+    let customerId = Number(localStorage.getItem("customerId")) || null;
 
     let products = [];
 
@@ -313,6 +317,10 @@
         if (response.ok) {
 
             customerId = data.id;
+            localStorage.setItem("customerId", String(data.id));
+            window.dispatchEvent(new CustomEvent("customer-login-live", {
+                detail: data
+            }));
 
             document.getElementById("loginSection").classList.add("hidden");
 
@@ -355,6 +363,7 @@
         const productSelect =
             document.getElementById("productSelect");
 
+        const selectedProductId = productSelect.value;
         productSelect.innerHTML =
             '<option value="">Select a product</option>';
 
@@ -368,7 +377,6 @@
             const option = document.createElement("option");
 
             option.value = product.id;
-
             option.textContent =
                 product.name +
                 " - $" +
@@ -376,6 +384,10 @@
                 " (" +
                 product.stock +
                 " in stock)";
+            option.disabled = product.stock <= 0;
+            if (String(product.id) === selectedProductId && product.stock > 0) {
+                option.selected = true;
+            }
 
             productSelect.appendChild(option);
 
@@ -560,7 +572,6 @@
         }
     }
 
-
     function showStaffPopup() {
 
         document.getElementById("staffModal").style.display =
@@ -594,7 +605,9 @@
             document.getElementById("staffPassword").value;
 
 
-        const response = await fetch("/staff-login", {
+        const staffBase = window.location.protocol + "//" +
+            window.location.hostname + ":8001";
+        const response = await fetch(staffBase + "/staff-login", {
 
             method: "POST",
 
@@ -615,7 +628,7 @@
 
         if (response.ok) {
 
-            window.location.href = "/staff";
+            window.location.href = staffBase + "/";
 
         } else {
 
@@ -639,7 +652,21 @@
 
     };
 
+    window.addEventListener("order-created-live", function() {
+        loadProducts();
+    });
+    window.addEventListener("customer-order-status-live", function() {
+        loadOrders();
+    });
+    if (customerId) {
+        document.getElementById("loginSection").classList.add("hidden");
+        document.getElementById("customerSection").classList.remove("hidden");
+        document.getElementById("welcomeMessage").textContent = "Welcome back";
+        loadProducts();
+    }
+
 </script>
+<script src="/static/live-notifications.js" data-role="customer"></script>
 
 </body>
 </html>

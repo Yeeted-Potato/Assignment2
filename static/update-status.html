@@ -107,61 +107,28 @@
     <script>
         async function loadOrders() {
             try {
-                // Get all customers
-                const customersResponse = await fetch("/customers");
-                const customers = await customersResponse.json();
-
-                // Get all products
-                const productsResponse = await fetch("/products");
-                const products = await productsResponse.json();
-
                 // Clear existing orders
                 document.getElementById("pendingOrders").innerHTML = "";
                 document.getElementById("paidOrders").innerHTML = "";
                 document.getElementById("shippedOrders").innerHTML = "";
                 document.getElementById("deliveredOrders").innerHTML = "";
 
-                let allOrders = [];
-
-                // Get orders for each customer
-                for (const customer of customers) {
-                    const ordersResponse = await fetch(
-                        "/customers/" + customer.id + "/orders"
-                    );
-
-                    const orders = await ordersResponse.json();
-
-                    for (const order of orders) {
-                        allOrders.push(order);
-                    }
+                const response = await fetch("/staff/orders");
+                if (!response.ok) {
+                    throw new Error("Staff service returned " + response.status);
                 }
+                const allOrders = await response.json();
 
                 for (const order of allOrders) {
-                    const product = products.find(
-                        p => p.id === order.product_id
-                    );
-
-                    const productName = product
-                        ? product.name
-                        : "Unknown product";
-
-                    const customer = customers.find(
-                        c => c.id === order.customer_id
-                    );
-
-                    const customerName = customer
-                        ? customer.name
-                        : "Unknown customer";
-
                     const orderDiv = document.createElement("div");
                     orderDiv.className = "order";
 
                     orderDiv.innerHTML =
                         "<strong>Order ID:</strong> " + order.id + "<br>" +
-                        "<strong>Product:</strong> " + productName +
+                        "<strong>Product:</strong> " + order.product_name +
                         " (ID: " + order.product_id + ")<br>" +
                         "<strong>Quantity:</strong> " + order.quantity + "<br>" +
-                        "<strong>Customer:</strong> " + customerName +
+                        "<strong>Customer:</strong> " + order.customer_name +
                         " (ID: " + order.customer_id + ")<br>" +
                         "<strong>Status:</strong> " + order.status;
 
@@ -194,27 +161,25 @@
             const orderId = document.getElementById("orderId").value;
             const newStatus = document.getElementById("newStatus").value;
 
-            const response = await fetch("/orders/" + orderId, {
-                method: "PATCH",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({
-                    status: newStatus
-                })
-            });
-
-            const data = await response.json();
-
-            if (response.ok) {
+            try {
+                const response = await fetch("/staff/orders/" + orderId, {
+                    method: "PATCH",
+                    headers: {"Content-Type": "application/json"},
+                    body: JSON.stringify({status: newStatus})
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    document.getElementById("output").textContent =
+                        "Order " + data.id + " updated to: " + data.status +
+                        ". Broker event: " + data.event_delivery + ".";
+                    loadOrders();
+                } else {
+                    document.getElementById("output").textContent =
+                        "Error: " + JSON.stringify(data.detail);
+                }
+            } catch (error) {
                 document.getElementById("output").textContent =
-                    "Order " + data.id + " updated to: " + data.status;
-
-                // Reload orders so the order moves to the new column
-                loadOrders();
-            } else {
-                document.getElementById("output").textContent =
-                    "Error: " + JSON.stringify(data.detail);
+                    "Staff service unavailable. The request could not be completed.";
             }
         }
 
@@ -222,5 +187,6 @@
         loadOrders();
     </script>
 
+<script src="/static/live-notifications.js" data-role="staff"></script>
 </body>
 </html>
