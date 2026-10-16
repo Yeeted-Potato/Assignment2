@@ -50,14 +50,22 @@
             seen.add(id);
         }
         const item = document.createElement("li");
-        const displayTime = formatNewZealandTime(new Date().toISOString());
-        const timeLabel = restored ? "Restored at " : "Notified at ";
-        const eventTime = eventTimestamp
-            ? "; event occurred at " + formatNewZealandTime(eventTimestamp)
-            : "; event time unavailable";
         const cleanMessage = message.replace(/[.!?]+$/, "");
-        item.textContent =
-            timeLabel + displayTime + " — " + cleanMessage + eventTime + ".";
+        if (restored) {
+            const savedEventTime = eventTimestamp
+                ? formatNewZealandTime(eventTimestamp)
+                : "unavailable";
+            item.textContent =
+                "Event occurred at " + savedEventTime + " — " + cleanMessage + ".";
+        } else {
+            const notifiedTime = formatNewZealandTime(new Date().toISOString());
+            const eventTime = eventTimestamp
+                ? formatNewZealandTime(eventTimestamp)
+                : "unavailable";
+            item.textContent =
+                "Notified at " + notifiedTime + " — " + cleanMessage +
+                "; event occurred at " + eventTime + ".";
+        }
         list.prepend(item);
         while (list.children.length > 25) {
             list.lastElementChild.remove();
@@ -229,7 +237,6 @@
             window.dispatchEvent(new CustomEvent("order-created-live", {
                 detail: order
             }));
-            restoreNotifications();
         };
         socket.onclose = function() {
             status.textContent = "Live connection lost. Reconnecting...";
