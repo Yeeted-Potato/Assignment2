@@ -3,3 +3,6 @@ __pycache__/
 *.pyc
 orders.db
 staff.db
+
+# local development credentials, see .env.example
+.env

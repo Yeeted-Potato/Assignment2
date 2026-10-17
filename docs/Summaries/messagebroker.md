@@ -124,15 +124,21 @@ response; the broker event is used to notify the affected customer.
 - **Broker unavailable before publish:** the order/status transaction has
   already committed with an outbox row. The relay keeps retrying that row until
   RabbitMQ confirms the publish.
-- **Callback unavailable after consume:** the consumer logs the callback
-  failure, negatively acknowledges the message with `requeue=True`, and
-  RabbitMQ can deliver it again after the callback/service recovers.
+- **Malformed or unprocessable event:** the consumer validates the whole event
+  before writing anything and negatively acknowledges a bad one with
+  `requeue=False`; RabbitMQ routes it to `orders.events.dead` using the
+  configured dead-letter routing key. Validation runs first so a bad event
+  cannot leave a notification saved in one database but not the other.
+- **Transient failure (database unavailable or callback unreachable):** the
+  consumer republishes the message with a raised `x-attempt-count` header and
+  acknowledges the old delivery. After `MAX_ATTEMPTS` (3) failed attempts the
+  message is negatively acknowledged with `requeue=False` and dead-lettered, so
+  a permanently failing dependency cannot loop forever.
 - **Repeated delivery:** customer and staff notification tables use unique
   event IDs. Consumer persistence checks for an existing event ID before
-  inserting a notification, so retrying persistence is idempotent.
-- **Malformed or unprocessable event:** the consumer negatively acknowledges
-  it with `requeue=False`; RabbitMQ routes it to `orders.events.dead` using the
-  configured dead-letter routing key.
+  inserting a notification, so retrying persistence is idempotent. This is what
+  makes a retry safe even when one database write succeeded and the other did
+  not.
 - **Publisher confirms:** these confirm broker acceptance of a published
   message. The outbox is marked published only after a confirmed publish.
 - **Acknowledgement:** a consumed event is acknowledged only after notification

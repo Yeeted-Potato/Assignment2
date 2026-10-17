@@ -67,8 +67,8 @@ Wait until the services are healthy. Open:
 - Staff site: <http://localhost:8001/>
 - Customer API docs: <http://localhost:8000/docs>
 - Staff API docs: <http://localhost:8001/docs>
-- RabbitMQ management: <http://localhost:15672/> (user `orders`, password
-  `orders-local-dev`)
+- RabbitMQ management: <http://localhost:15672/> (sign in with `RABBITMQ_USER` and
+  `RABBITMQ_PASSWORD` from your `.env`)
 
 Demo accounts after seeding:
 

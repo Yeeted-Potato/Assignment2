@@ -1,5 +1,6 @@
 import hmac
 import logging
+import settings  # noqa: F401  loads .env before the values below are read
 import os
 
 import httpx

@@ -1,3 +1,4 @@
+import settings  # noqa: F401  loads .env before the values below are read
 import os
 
 from sqlalchemy import create_engine, event

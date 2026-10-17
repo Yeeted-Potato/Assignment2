@@ -1,3 +1,4 @@
+import settings  # noqa: F401  loads .env before the values below are read
 import json
 import logging
 import os
@@ -7,13 +8,31 @@ import pika
 
 
 logger = logging.getLogger(__name__)
-RABBITMQ_URL = os.getenv("RABBITMQ_URL", "amqp://guest:guest@localhost:5672/%2F")
+
+
+def rabbitmq_url() -> str:
+    #the whole URL can be given directly, otherwise it is built from the parts
+    url = os.getenv("RABBITMQ_URL")
+    if url:
+        return url
+
+    password = os.getenv("RABBITMQ_PASSWORD")
+    if not password:
+        raise RuntimeError(
+            "RABBITMQ_PASSWORD is not set. Copy .env.example to .env and fill in the values."
+        )
+
+    user = os.getenv("RABBITMQ_USER", "orders")
+    host = os.getenv("RABBITMQ_HOST", "localhost")
+    return f"amqp://{user}:{password}@{host}:5672/%2F"
+
+
 ORDERS_QUEUE = os.getenv("ORDERS_QUEUE", "orders.events")
 DEAD_LETTER_QUEUE = os.getenv("ORDERS_DEAD_LETTER_QUEUE", "orders.events.dead")
 
 
 def open_channel():
-    connection = pika.BlockingConnection(pika.URLParameters(RABBITMQ_URL))
+    connection = pika.BlockingConnection(pika.URLParameters(rabbitmq_url()))
     channel = connection.channel()
     channel.queue_declare(
         queue=ORDERS_QUEUE,

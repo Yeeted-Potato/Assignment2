@@ -1,6 +1,7 @@
 import hmac
 import json
 import logging
+import settings  # noqa: F401  loads .env before the values below are read
 import os
 import uuid
 from collections import defaultdict
