@@ -3,5 +3,6 @@
 __pycache__
 *.py[cod]
 *.db
+.env
 android-client/.gradle
 android-client/app/build

@@ -41,6 +41,15 @@ New orders create saved customer and staff alerts, refresh inventory on open cus
 
 - Have the Docker Engine running
 
+- Create your local configuration file from the supplied example. `.env` holds the
+  local development credentials and is not committed to the repository. Docker Compose
+  reads it automatically:
+
+copy .env.example .env
+
+  Then edit `.env` and set `RABBITMQ_PASSWORD` to a password of your choice (letters,
+  digits and hyphens only). The other values can stay as they are.
+
 - First time -> From the repository root in PowerShell:
 
 docker compose build
@@ -58,7 +67,7 @@ docker compose up -d
 docker compose ps
 
 
-Open the customer login at `http://localhost:8000/` and the staff client at `http://localhost:8001/`. Customer login is shown by default; to resume a browser-stored customer session explicitly, use `http://localhost:8000/?resume=1`. API documentation is available at `/docs` on each service. RabbitMQ's local management page is `http://localhost:15672/` (local-development credentials: `orders` / `orders-local-dev`).
+Open the customer login at `http://localhost:8000/` and the staff client at `http://localhost:8001/`. Customer login is shown by default; to resume a browser-stored customer session explicitly, use `http://localhost:8000/?resume=1`. API documentation is available at `/docs` on each service. RabbitMQ's local management page is `http://localhost:15672/` (sign in with `RABBITMQ_USER` / `RABBITMQ_PASSWORD` from your `.env`).
 
 
 Follow service logs with `docker compose logs -f customer-service staff-service consumer rabbitmq`.
@@ -120,11 +129,18 @@ For an Android emulator, the app uses `10.0.2.2:8000` to reach the host customer
 
 ## Configuration
 
+Local credentials live in `.env`, which is created from [`.env.example`](.env.example) and is
+ignored by git. Compose fails fast with a clear message if `RABBITMQ_PASSWORD` is missing, so a
+copy of the example with the password set is all that is needed to run the system.
+
 | Variable | Default | Purpose |
 | --- | --- | --- |
+| `RABBITMQ_USER` | `orders` | Broker account name, also used as the management UI sign-in. |
+| `RABBITMQ_PASSWORD` | *(none — required)* | Broker account password. Required in `.env`; nothing is committed. |
+| `RABBITMQ_HOST` | `localhost` | Broker hostname. Compose overrides this with the `rabbitmq` service name. |
 | `DATABASE_URL` | `sqlite:///./orders.db` | Customer-owned database; the consumer reads its outbox and writes customer notifications here. |
 | `STAFF_DATABASE_URL` | `sqlite:///./staff.db` | Staff-owned database for staff login and notifications. |
-| `RABBITMQ_URL` | `amqp://guest:guest@localhost:5672/%2F` | RabbitMQ AMQP connection URL; Compose configures a non-guest local user for container-to-container connections. |
+| `RABBITMQ_URL` | built from `RABBITMQ_USER` / `RABBITMQ_PASSWORD` / `RABBITMQ_HOST` | RabbitMQ AMQP connection URL. Set it directly only if you need a full URL; otherwise the parts in `.env` are used. |
 | `ORDERS_QUEUE` | `orders.events` | Durable order-event queue. |
 | `ORDERS_DEAD_LETTER_QUEUE` | `orders.events.dead` | Dead-letter destination for malformed messages. |
 | `CUSTOMER_SERVICE_URL` | `http://127.0.0.1:8000` | Customer API base URL used by the consumer callback. |
@@ -133,10 +149,13 @@ For an Android emulator, the app uses `10.0.2.2:8000` to reach the host customer
 | `WEB_ORIGINS` | Localhost ports 8000 and 8001 | Comma-separated browser origins permitted by each API. |
 | `STAFF_PASSWORD` | `dummypw` | Demo staff password checked by the staff login endpoint. |
 
+For a non-Docker local run, set the same variables in your shell instead; `settings.py`
+loads `.env` at startup, so a `.env` file works for both ways of running the system.
+
 ## Known limitations
 
 - Demo sign-in is not production authentication: customer login checks name/email, staff uses a shared demo password, and WebSocket connections are not authenticated.
 - The customer and staff services own separate SQLite files. The consumer accesses both databases to relay events and persist each role's notifications; Docker stores the two files on one named volume.
-- RabbitMQ provides at-least-once delivery. Notification persistence is idempotent by event ID; the consumer retries callback failures and republishes pending outbox records.
+- RabbitMQ provides at-least-once delivery. Notification persistence is idempotent by event ID; the consumer retries transient failures up to three attempts and republishes pending outbox records. A message that fails three times is dead-lettered to `orders.events.dead`.
 - Android is a customer workflow client; the staff workflows are web-only.
 - Android has not implemented websockets as only one web client was required in assignment brief to implement the feature

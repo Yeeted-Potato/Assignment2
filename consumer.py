@@ -1,5 +1,6 @@
 import json
 import logging
+import settings  # noqa: F401  loads .env before the values below are read
 import os
 import threading
 import time
@@ -25,6 +26,11 @@ logger = logging.getLogger("orders-consumer")
 CUSTOMER_SERVICE_URL = os.getenv("CUSTOMER_SERVICE_URL", "http://127.0.0.1:8000")
 STAFF_SERVICE_URL = os.getenv("STAFF_SERVICE_URL", "http://127.0.0.1:8001")
 INTERNAL_EVENT_TOKEN = os.getenv("INTERNAL_EVENT_TOKEN", "local-development-token")
+
+#how many times a transient failure is retried before the dead letter queue
+MAX_ATTEMPTS = 3
+#header that carries the attempt count across retries
+ATTEMPT_HEADER = "x-attempt-count"
 
 Base.metadata.create_all(bind=engine, tables=CUSTOMER_TABLES)
 Base.metadata.create_all(bind=staff_engine, tables=STAFF_TABLES)
@@ -206,13 +212,96 @@ def outbox_relay():
         time.sleep(2)
 
 
+def validate_event(event: dict) -> None:
+    #check the whole event before writing anything, so a bad event cannot
+    #leave a notification saved in one database but not the other
+    event_type = event.get("event_type")
+    if event_type not in ("order.created", "order.status_changed"):
+        raise ValueError("Unsupported event type")
+
+    event_id = event.get("event_id")
+    if not isinstance(event_id, str) or not event_id:
+        raise ValueError("Event is missing an event_id")
+
+    payload = event.get("payload")
+    if not isinstance(payload, dict):
+        raise ValueError("Event payload must be an object")
+
+    if not isinstance(payload.get("order_id"), int):
+        raise ValueError("Event is missing a valid order_id")
+
+    if not isinstance(payload.get("customer_id"), int):
+        raise ValueError("Event is missing a valid customer_id")
+
+    #a bad timestamp would fail after a notification is already saved
+    event_timestamp(event)
+
+
+def event_attempts(properties) -> int:
+    headers = getattr(properties, "headers", None) or {}
+    try:
+        return int(headers.get(ATTEMPT_HEADER, 0))
+    except (TypeError, ValueError):
+        return 0
+
+
+def retry_or_dead_letter(ch, method, properties, body, event_id, reason):
+    #a transient failure is retried up to MAX_ATTEMPTS, then dead lettered
+    attempts = event_attempts(properties) + 1
+    if attempts >= MAX_ATTEMPTS:
+        logger.warning(
+            "Event %s failed %d times (%s); sending to the dead letter queue",
+            event_id,
+            attempts,
+            reason,
+        )
+        ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
+        return
+
+    logger.warning(
+        "Event %s failed (attempt %d of %d: %s); will retry",
+        event_id,
+        attempts,
+        MAX_ATTEMPTS,
+        reason,
+    )
+    #republish with the attempt count raised, then ack the old delivery
+    headers = dict(getattr(properties, "headers", None) or {})
+    headers[ATTEMPT_HEADER] = attempts
+    ch.basic_publish(
+        exchange="",
+        routing_key=ORDERS_QUEUE,
+        body=body,
+        properties=pika.BasicProperties(
+            content_type="application/json",
+            delivery_mode=pika.DeliveryMode.Persistent,
+            message_id=properties.message_id,
+            type=properties.type,
+            headers=headers,
+        ),
+    )
+    ch.basic_ack(delivery_tag=method.delivery_tag)
+
+
 def consume_events(channel):
-    def on_message(ch, method, _properties, body):
+    def on_message(ch, method, properties, body):
+        event_id = None
         try:
             event = json.loads(body.decode("utf-8"))
             if not isinstance(event, dict):
                 raise ValueError("Event message must be a JSON object")
+            event_id = event.get("event_id")
+            #validate everything up front so a bad event cannot be half saved
+            validate_event(event)
             attach_outbox_timestamp(event)
+        except (UnicodeDecodeError, json.JSONDecodeError, ValueError, TypeError, KeyError):
+            #a badly formed message will never succeed, so it goes straight to
+            #the dead letter queue instead of being retried
+            logger.exception("Malformed broker message; sending to the dead letter queue")
+            ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
+            return
+
+        try:
             session_factory = (
                 StaffSessionLocal
                 if event.get("event_type") == "order.created"
@@ -240,9 +329,18 @@ def consume_events(channel):
                     callback_service = "customer"
             finally:
                 db.close()
-        except (UnicodeDecodeError, json.JSONDecodeError, ValueError, SQLAlchemyError):
-            logger.exception("Invalid or unprocessable broker message; sending to dead letter queue")
+        except ValueError:
+            #the message carries something that cannot be stored, such as a
+            #bad timestamp, so retrying will never help
+            logger.exception("Unprocessable broker message; sending to the dead letter queue")
             ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
+            return
+        except SQLAlchemyError:
+            #the database may be locked or briefly unavailable, so this is
+            #worth retrying. Persistence is idempotent by event id, so a retry
+            #cannot duplicate a notification already saved in the other database.
+            logger.exception("Database unavailable for event %s", event_id)
+            retry_or_dead_letter(ch, method, properties, body, event_id, "database unavailable")
             return
 
         for callback_url in callback_urls:
@@ -255,13 +353,9 @@ def consume_events(channel):
                 )
                 response.raise_for_status()
             except httpx.HTTPError:
-                logger.exception(
-                    "%s service callback failed for event %s; requeueing",
-                    callback_service,
-                    event.get("event_id"),
-                )
-                time.sleep(1)
-                ch.basic_nack(delivery_tag=method.delivery_tag, requeue=True)
+                #the service may be restarting, so retry, but not forever
+                logger.exception("%s service callback failed for event %s", callback_service, event_id)
+                retry_or_dead_letter(ch, method, properties, body, event_id, "service callback failed")
                 return
 
         ch.basic_ack(delivery_tag=method.delivery_tag)
@@ -269,7 +363,7 @@ def consume_events(channel):
             "Processed %s into notification %s (event %s)",
             event["event_type"],
             notification.id,
-            event["event_id"],
+            event_id,
         )
 
     channel.basic_qos(prefetch_count=1)

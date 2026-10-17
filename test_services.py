@@ -1,9 +1,11 @@
 import json
 from datetime import datetime
 
+import httpx
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, inspect
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import sessionmaker
 
 import consumer
@@ -423,6 +425,156 @@ def test_legacy_staff_data_migrates_without_cross_database_foreign_keys(tmp_path
         history_db.close()
         customer_engine.dispose()
         staff_engine.dispose()
+
+
+class FakeMethod:
+    delivery_tag = 7
+
+
+class FakeProperties:
+    def __init__(self, headers=None):
+        self.headers = headers or {}
+        self.message_id = "message-1"
+        self.type = "order.status_changed"
+
+
+class FakeChannel:
+    #records what the consumer decided to do with a delivery
+    def __init__(self):
+        self.acks = []
+        self.nacks = []
+        self.published = []
+        self.callback = None
+
+    def basic_qos(self, prefetch_count=1):
+        self.prefetch_count = prefetch_count
+
+    def basic_consume(self, queue, on_message_callback):
+        self.callback = on_message_callback
+
+    def start_consuming(self):
+        return None
+
+    def basic_ack(self, delivery_tag):
+        self.acks.append(delivery_tag)
+
+    def basic_nack(self, delivery_tag, requeue=False):
+        self.nacks.append((delivery_tag, requeue))
+
+    def basic_publish(self, exchange, routing_key, body, properties):
+        self.published.append((routing_key, body, properties))
+
+
+def consumer_callback():
+    channel = FakeChannel()
+    consumer.consume_events(channel)
+    return channel
+
+
+def status_event(event_id="retry-event", customer_id=1, order_id=41):
+    return {
+        "event_id": event_id,
+        "event_type": "order.status_changed",
+        "payload": {
+            "customer_id": customer_id,
+            "order_id": order_id,
+            "old_status": "pending",
+            "new_status": "paid",
+        },
+    }
+
+
+def test_malformed_event_is_dead_lettered_without_retry(service_clients):
+    #a message that can never parse must not be retried, only dead lettered
+    channel = consumer_callback()
+    channel.callback(channel, FakeMethod(), FakeProperties(), b"{not json")
+
+    assert channel.nacks == [(FakeMethod.delivery_tag, False)]
+    assert channel.published == []
+    assert channel.acks == []
+
+
+def test_transient_database_failure_is_retried_with_attempt_count(service_clients):
+    channel = consumer_callback()
+
+    def broken_persist(db, event):
+        raise SQLAlchemyError("database is locked")
+
+    try:
+        original = consumer.persist_notification
+        consumer.persist_notification = broken_persist
+        channel.callback(
+            channel, FakeMethod(), FakeProperties(), json.dumps(status_event()).encode()
+        )
+    finally:
+        consumer.persist_notification = original
+
+    assert channel.acks == [FakeMethod.delivery_tag]
+    assert channel.nacks == []
+    assert len(channel.published) == 1
+    _, _, properties = channel.published[0]
+    assert properties.headers[consumer.ATTEMPT_HEADER] == 1
+
+
+def test_repeated_failures_dead_letter_after_max_attempts(service_clients):
+    channel = consumer_callback()
+    properties = FakeProperties(
+        headers={consumer.ATTEMPT_HEADER: consumer.MAX_ATTEMPTS - 1}
+    )
+
+    def broken_persist(db, event):
+        raise SQLAlchemyError("database is locked")
+
+    try:
+        original = consumer.persist_notification
+        consumer.persist_notification = broken_persist
+        channel.callback(
+            channel, FakeMethod(), properties, json.dumps(status_event()).encode()
+        )
+    finally:
+        consumer.persist_notification = original
+
+    #retries are exhausted, so this delivery is dead lettered and not republished
+    assert channel.nacks == [(FakeMethod.delivery_tag, False)]
+    assert channel.published == []
+    assert channel.acks == []
+
+
+def test_callback_failure_is_retried_instead_of_looping_forever(service_clients):
+    channel = consumer_callback()
+
+    def broken_post(*args, **kwargs):
+        raise httpx.ConnectError("service is down")
+
+    try:
+        original = consumer.httpx.post
+        consumer.httpx.post = broken_post
+        channel.callback(
+            channel, FakeMethod(), FakeProperties(), json.dumps(status_event()).encode()
+        )
+    finally:
+        consumer.httpx.post = original
+
+    #the notification is saved, and the delivery is retried rather than requeued
+    assert channel.nacks == []
+    assert channel.acks == [FakeMethod.delivery_tag]
+    assert len(channel.published) == 1
+
+
+def test_event_is_validated_before_any_notification_is_written(service_clients):
+    _, _, customer_session, staff_session, _, _ = service_clients
+
+    incomplete = {
+        "event_id": "missing-customer",
+        "event_type": "order.created",
+        "payload": {"order_id": 12},
+    }
+    with pytest.raises(ValueError):
+        consumer.validate_event(incomplete)
+
+    #nothing was written to either database
+    assert customer_session().query(models.Notification).count() == 0
+    assert staff_session().query(models.StaffNotification).count() == 0
 
 
 def test_seed_cleans_legacy_shared_tables_before_resetting_orders(tmp_path):
