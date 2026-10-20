@@ -149,15 +149,24 @@ async def staff_order_updates(websocket: WebSocket):
 async def deliver_internal_event(
     event: dict,
     x_internal_token: str | None = Header(default=None, alias="X-Internal-Token"),
+    db=Depends(get_staff_db),
 ):
     if not x_internal_token or not hmac.compare_digest(x_internal_token, INTERNAL_EVENT_TOKEN):
         raise HTTPException(status_code=401, detail="Invalid internal event token")
     if event.get("event_type") != "order.created":
         raise HTTPException(status_code=422, detail="Unsupported staff event type")
+    event_id = event.get("event_id")
+    if not isinstance(event_id, str) or not event_id:
+        raise HTTPException(status_code=422, detail="Event is missing a valid event_id")
     payload = event.get("payload")
     if not isinstance(payload, dict) or not isinstance(payload.get("order_id"), int):
         raise HTTPException(status_code=422, detail="Event is missing a valid order_id")
+    if db.query(models.WebSocketEventDelivery).filter_by(event_id=event_id).first():
+        return {"delivered": True, "duplicate": True}
+
     await staff_connections.broadcast(event)
+    db.add(models.WebSocketEventDelivery(event_id=event_id))
+    db.commit()
     return {"delivered": True}
 
 

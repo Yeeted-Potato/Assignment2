@@ -338,19 +338,36 @@ async def customer_order_updates(websocket: WebSocket, customer_id: int):
 async def deliver_internal_event(
     event: dict,
     x_internal_token: str | None = Header(default=None, alias="X-Internal-Token"),
+    db: Session = Depends(get_db),
 ):
     verify_internal_token(x_internal_token)
-    payload = event.get("payload", {})
+    event_id = event.get("event_id")
+    if not isinstance(event_id, str) or not event_id:
+        raise HTTPException(status_code=422, detail="Event is missing a valid event_id")
+    payload = event.get("payload")
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=422, detail="Event payload must be an object")
     if event.get("event_type") == "order.created":
         customer_id = payload.get("customer_id")
         product_id = payload.get("product_id")
         stock_remaining = payload.get("stock_remaining")
         if not isinstance(customer_id, int) or not isinstance(product_id, int):
             raise HTTPException(status_code=422, detail="Event is missing order identifiers")
+    elif event.get("event_type") == "order.status_changed":
+        customer_id = payload.get("customer_id")
+        if not isinstance(customer_id, int):
+            raise HTTPException(status_code=422, detail="Event is missing a valid customer_id")
+    else:
+        raise HTTPException(status_code=422, detail="Unsupported customer event type")
+
+    if db.query(models.WebSocketEventDelivery).filter_by(event_id=event_id).first():
+        return {"delivered": True, "duplicate": True}
+
+    if event.get("event_type") == "order.created":
         await connections.broadcast(customer_id, event)
         await connections.broadcast_inventory(
             {
-                "event_id": event.get("event_id"),
+                "event_id": event_id,
                 "event_type": "inventory.updated",
                 "payload": {
                     "product_id": product_id,
@@ -358,13 +375,11 @@ async def deliver_internal_event(
                 },
             }
         )
-    elif event.get("event_type") == "order.status_changed":
-        customer_id = payload.get("customer_id")
-        if not isinstance(customer_id, int):
-            raise HTTPException(status_code=422, detail="Event is missing a valid customer_id")
-        await connections.broadcast(customer_id, event)
     else:
-        raise HTTPException(status_code=422, detail="Unsupported customer event type")
+        await connections.broadcast(customer_id, event)
+
+    db.add(models.WebSocketEventDelivery(event_id=event_id))
+    db.commit()
     return {"delivered": True}
 
 

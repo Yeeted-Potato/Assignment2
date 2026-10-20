@@ -21,7 +21,7 @@ services:
     environment:
       DATABASE_URL: sqlite:////app/data/orders.db
       STAFF_DATABASE_URL: sqlite:////app/data/staff.db
-      RABBITMQ_URL: amqp/${RABBITMQ_USER:-orders}:${RABBITMQ_PASSWORD:?Create .env from .env.example first}@rabbitmq:5672/%2F
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-orders}:${RABBITMQ_PASSWORD:?Create .env from .env.example first}@rabbitmq:5672/%2F
       INTERNAL_EVENT_TOKEN: ${INTERNAL_EVENT_TOKEN:-local-development-token}
       WEB_ORIGINS: http://localhost:8000,http://127.0.0.1:8000,http://localhost:8001,http://127.0.0.1:8001
     ports:
@@ -73,7 +73,7 @@ services:
     environment:
       DATABASE_URL: sqlite:////app/data/orders.db
       STAFF_DATABASE_URL: sqlite:////app/data/staff.db
-      RABBITMQ_URL: amqp/${RABBITMQ_USER:-orders}:${RABBITMQ_PASSWORD:?Create .env from .env.example first}@rabbitmq:5672/%2F
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-orders}:${RABBITMQ_PASSWORD:?Create .env from .env.example first}@rabbitmq:5672/%2F
       INTERNAL_EVENT_TOKEN: ${INTERNAL_EVENT_TOKEN:-local-development-token}
       CUSTOMER_SERVICE_URL: http://customer-service:8000
       STAFF_SERVICE_URL: http://staff-service:8001

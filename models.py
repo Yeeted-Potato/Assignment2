@@ -97,6 +97,13 @@ class DomainEventOutbox(Base):
     published_at = Column(DateTime, nullable=True)
 
 
+class WebSocketEventDelivery(Base):
+    __tablename__ = "websocket_event_deliveries"
+
+    event_id = Column(String, primary_key=True)
+    delivered_at = Column(DateTime, server_default=func.now(), nullable=False)
+
+
 CUSTOMER_TABLES = [
     Customer.__table__,
     Product.__table__,
@@ -104,6 +111,11 @@ CUSTOMER_TABLES = [
     OrderStatusHistory.__table__,
     Notification.__table__,
     DomainEventOutbox.__table__,
+    WebSocketEventDelivery.__table__,
 ]
 
-STAFF_TABLES = [Staff.__table__, StaffNotification.__table__]
+STAFF_TABLES = [
+    Staff.__table__,
+    StaffNotification.__table__,
+    WebSocketEventDelivery.__table__,
+]

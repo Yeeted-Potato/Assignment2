@@ -653,7 +653,9 @@
     };
 
     window.addEventListener("order-created-live", function() {
-        loadProducts();
+        if (customerId) {
+            loadProducts();
+        }
     });
     window.addEventListener("customer-order-status-live", function() {
         loadOrders();

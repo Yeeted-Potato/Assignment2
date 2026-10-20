@@ -230,6 +230,13 @@ def test_customer_websocket_receives_internal_order_event(service_clients):
         )
         assert delivered.status_code == 200
         assert websocket.receive_json() == event
+        duplicate = customer_client.post(
+            "/internal/events",
+            json=event,
+            headers={"X-Internal-Token": "local-development-token"},
+        )
+        assert duplicate.status_code == 200
+        assert duplicate.json() == {"delivered": True, "duplicate": True}
 
 
 def test_new_order_broadcast_refreshes_inventory_without_order_details(service_clients):
@@ -261,6 +268,13 @@ def test_new_order_broadcast_refreshes_inventory_without_order_details(service_c
             "event_type": "inventory.updated",
             "payload": {"product_id": product_id, "stock_remaining": 4},
         }
+        duplicate = customer_client.post(
+            "/internal/events",
+            json=event,
+            headers={"X-Internal-Token": "local-development-token"},
+        )
+        assert duplicate.status_code == 200
+        assert duplicate.json() == {"delivered": True, "duplicate": True}
 
 
 def test_staff_order_notification_persists_once_and_broadcasts(service_clients):
@@ -321,6 +335,13 @@ def test_staff_order_notification_persists_once_and_broadcasts(service_clients):
         )
         assert delivered.status_code == 200
         assert websocket.receive_json() == event
+        duplicate = staff_client.post(
+            "/internal/events",
+            json=event,
+            headers={"X-Internal-Token": "local-development-token"},
+        )
+        assert duplicate.status_code == 200
+        assert duplicate.json() == {"delivered": True, "duplicate": True}
 
     saved = staff_client.get("/staff/notifications")
     assert saved.status_code == 200
