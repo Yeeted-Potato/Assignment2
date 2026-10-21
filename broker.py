@@ -65,7 +65,7 @@ def publish_order_event(
             if occurred_at.tzinfo is None:
                 occurred_at = occurred_at.replace(tzinfo=timezone.utc)
             event["occurred_at"] = occurred_at.astimezone(timezone.utc).isoformat()
-        return channel.basic_publish(
+        channel.basic_publish(
             exchange="",
             routing_key=ORDERS_QUEUE,
             body=json.dumps(event),
@@ -77,6 +77,7 @@ def publish_order_event(
             ),
             mandatory=True,
         )
+        return True
     except (pika.exceptions.AMQPError, OSError) as exc:
         logger.warning("Could not publish order event %s; it remains in the outbox: %s", event_id, exc)
         return False
