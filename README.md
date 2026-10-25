@@ -1,35 +1,9 @@
 # Customer Orders: Web, Android, and RabbitMQ
 
-This project extends the original Customer Orders API with distinct customer and staff backend services, a RabbitMQ event workflow, and live web updates over WebSockets. The Android client continues to use just the customer REST API. The selected advanced integration is **Path B: message broker**.
+This E-commerce orders project extends the original Customer Orders API with distinct customer and staff backend services, a RabbitMQ event workflow, and live web updates over WebSockets. The Android client continues to use just the customer REST API. The selected advanced integration is **Path B: message broker**.
 
-## Architecture
-
-![Customer Orders system architecture and event flow](docs/Summaries/system-architecture.png)
-
-
-Customer web client / Android
-          | HTTP + WebSocket
-          v
-Customer service :8000 <----- internal REST ----- Staff service :8001
-  | owns orders.db                                  | owns staff.db
-  | customers, products, orders, outbox              | staff accounts, staff alerts
-  |                                                  |
-  +---------------- order/status outbox -------------+
-                         |
-                         v
-                  RabbitMQ: orders.events
-                         |
-                         v
-               Separate consumer process
-                 |                      |
-                 v                      v
-        customer service WS      staff service WS
-        status + inventory       new-order alerts
-
-
-The customer service owns customer/order data and its outbox in `orders.db`; the staff service owns staff data and alerts in `staff.db`. Staff accesses customer/order data through authenticated internal REST calls, not direct database queries. Each order or status change and its outbox event are saved in one transaction. A separate consumer publishes events to RabbitMQ; manual acknowledgements, event-ID idempotency, retries, and a dead-letter queue support reliable delivery.
-
-New orders create saved customer and staff alerts, refresh inventory on open customer pages, and notify open staff pages. Status changes notify the affected customer's browser. Both web clients reconnect and restore saved alerts; Android uses the customer REST API. Alert times are stored in UTC and displayed in `Pacific/Auckland`; delayed alerts retain the original event time.
+GitHub repository URL: https://github.com/Yeeted-Potato/Assignment2
+final commit hash: 1f5c3996665260328e9a4f642f4b7b78cdc9a2c1
 
 ## Prerequisites
 
@@ -69,8 +43,7 @@ docker compose ps
 
 Open the customer login at `http://localhost:8000/` and the staff client at `http://localhost:8001/`. Customer login is shown by default; to resume a browser-stored customer session explicitly, use `http://localhost:8000/?resume=1`. API documentation is available at `/docs` on each service. RabbitMQ's local management page is `http://localhost:15672/` (sign in with `RABBITMQ_USER` / `RABBITMQ_PASSWORD` from your `.env`).
 
-
-Follow service logs with `docker compose logs -f customer-service staff-service consumer rabbitmq`.
+Follow service logs with `docker compose logs -f customer-service staff-service consumer rabbitmq` or through Docker Desktop.
 
 ## Close the project
 
@@ -84,6 +57,12 @@ docker compose down --volumes
 
 - Can use Docker desktop instead to stop the running container
 
+## Service Architecture
+
+The customer service owns customer/order data and its outbox in `orders.db`; the staff service owns staff data and alerts in `staff.db`. Staff accesses customer/order data through authenticated internal REST calls, not direct database queries. Each order or status change and its outbox event are saved in one transaction. A separate consumer publishes events to RabbitMQ; manual acknowledgements, event-ID idempotency, retries, and a dead-letter queue support reliable delivery.
+
+New orders create saved customer and staff alerts, refresh inventory on open customer pages, and notify open staff pages. Status changes notify the affected customer's browser. Both web clients reconnect and restore saved alerts; Android uses the customer REST API. Alert times are stored in UTC and displayed in `Pacific/Auckland`; delayed alerts retain the original event time.
+
 ## Demo accounts and shared workflow
 
 After seeding:
@@ -91,7 +70,7 @@ After seeding:
 - Customer web/Android login: **Evan**, `evan@test.com`.
 - Another customer: **Bob**, `bob@test.com`.
 - Staff login: `sam@test.com`, password **dummypw**.
-- Sample products: Keyboard, Mouse, and Monitor.
+- Sample product data(count): Keyboard(20), Mouse(50), and Monitor(5).
 
 To demonstrate the shared workflow:
 
@@ -102,6 +81,15 @@ To demonstrate the shared workflow:
 5. To demonstrate recovery, temporarily stop a service or RabbitMQ container. An event remains in the outbox or is requeued; restore the component and confirm that the pages reconnect, restore saved notifications, and refresh current data.
 
 The status workflow is `pending -> paid -> shipped -> delivered`. Orders require either a typed delivery address or both latitude and longitude; the Android client continues to submit device location with manual-address fallback.
+
+6. Build and test the Android app from the repository root:
+
+Set-Location android-client
+.\gradlew.bat assembleDebug
+
+Can also just run the android app through Android Studio (recommended option).
+
+For an Android emulator, the app uses `10.0.2.2:8000` to reach the host customer service. For a physical phone, set `ApiClient.BASE_URL` in the Android project to the development computer's LAN address.
 
 ## API and ports
 
@@ -114,24 +102,18 @@ The status workflow is `pending -> paid -> shipped -> delivered`. Orders require
 
 ## Verification
 
-- The representative response-time check measures repeated `GET /products` requests against the customer API; its acceptance target is a local 95th-percentile response time below 250 ms:
+- Non-functional test requirement: The representative response-time check measures repeated `GET /products` requests against the customer API; its acceptance target is a local 95th-percentile response time below 250 ms:
 
 python scripts/measure_response_time.py
 
-In the implementation validation environment, 30 sequential loopback requests measured a mean of **17.80 ms** and p95 of **27.31 ms**, meeting the target. This is a local development observation, not a production benchmark; rerun on the demonstration machine and record its conditions/results.
-
-- Build the Android app from the repository root:
-
-Set-Location android-client
-.\gradlew.bat assembleDebug
-
-For an Android emulator, the app uses `10.0.2.2:8000` to reach the host customer service. For a physical phone, set `ApiClient.BASE_URL` in the Android project to the development computer's LAN address.
+In the implementation validation environment, 30 sequential loopback requests measured a mean of **17.80 ms** and p95 of **27.31 ms**, meeting the target. 
 
 ## Configuration
 
 Local credentials live in `.env`, which is created from [`.env.example`](.env.example) and is
 ignored by git. Compose fails fast with a clear message if `RABBITMQ_PASSWORD` is missing, so a
 copy of the example with the password set is all that is needed to run the system.
+Use RabbitMQ's default guest credentials for strictly local connections.  
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
